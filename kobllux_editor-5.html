@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>NEBULA PRO // MOBILE COMMAND — FINAL (iframe)</title>
+
+  <!-- Fontes / Ícones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!--
+    NEBULA IFRAME - CSS
+    - Accordion permite múltiplos abertos
+    - .accordion-content usa max-height via JS (scrollHeight) para animação suave
+    - overscroll dentro do container e -webkit-overflow-scrolling para mobile
+    - groupsList integrado (filtrar por classe / grupo retornado pelo host)
+  -->
+  <style>
+    :root{
+      --bg-void:#050505;
+      --bg-card:#111113;
+      --bg-glass:rgba(17,17,19,0.95);
+      --border:#2a2a2d;
+      --border-active:#00f2ff;
+      --accent:#00f2ff;
+      --accent-glow:rgba(0,242,255,0.12);
+      --secondary:#bd00ff;
+      --text-main:#ffffff;
+      --text-muted:#6b7280;
+      --radius-lg:14px;
+      --radius-sm:8px;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+    html,body{height:100%;}
+    body{
+      font-family:'Inter',sans-serif;
+      background:var(--bg-void);
+      color:var(--text-main);
+      display:flex;
+      flex-direction:column;
+      height:100vh;
+      overflow:hidden;
+    }
+
+    header{
+      height:60px; background:var(--bg-glass); border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between; padding:0 16px;
+      backdrop-filter:blur(8px); z-index:100; flex-shrink:0;
+    }
+    .brand{font-family:'JetBrains Mono',monospace;font-weight:800;display:flex;align-items:center;gap:8px}
+    .brand i{color:var(--accent);animation:pulse 3s infinite}
+    .history-controls{display:flex;gap:8px}
+    .btn-icon{width:40px;height:40px;border-radius:var(--radius-sm);background:rgba(255,255,255,0.03);border:1px solid transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.18s}
+    .btn-icon:active{transform:scale(.96)}
+    .btn-primary{background:var(--accent);color:#000;font-weight:700;border:none}
+
+    .dashboard{flex:1;overflow-y:auto;padding:16px;padding-bottom:120px;display:flex;flex-direction:column;gap:16px;-webkit-overflow-scrolling:touch;}
+
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;transition:border-color .2s}
+
+    .hero-card{padding:16px;border:1px solid var(--border-active);background:linear-gradient(145deg,#141416,#0f0f11);position:relative}
+    .hero-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+    .tag-badge{background:var(--accent-glow);color:var(--accent);padding:4px 8px;border-radius:4px;font-family:'JetBrains Mono';font-weight:700}
+    .hero-id{color:var(--text-muted);display:block;margin-top:4px;font-family:'JetBrains Mono';font-size:.78rem}
+
+    .nav-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+    .nav-btn{height:44px;background:rgba(0,0,0,0.25);border-radius:var(--radius-sm);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .nav-btn:active{background:var(--accent);color:#000;border-color:var(--accent)}
+
+    /* ACCORDION */
+    .accordion-item{border-bottom:1px solid var(--border);background:var(--bg-card)}
+    .accordion-item:first-child .accordion-header{border-top-left-radius:var(--radius-lg);border-top-right-radius:var(--radius-lg)}
+    .accordion-item:last-child .accordion-content{border-bottom-left-radius:var(--radius-lg);border-bottom-right-radius:var(--radius-lg);border-bottom:none}
+
+    .accordion-header{
+      padding:16px;width:100%;background:transparent;border:none;color:var(--text-main);font-weight:600;font-size:.95rem;
+      display:flex;justify-content:space-between;align-items:center;cursor:pointer;
+    }
+    .accordion-header i{transition:transform .25s, color .2s;color:var(--text-muted)}
+    .accordion-header.active i{transform:rotate(180deg);color:var(--accent)}
+
+    /* content uses dynamic max-height for animation, and internal scroll when needed */
+    .accordion-content{
+      max-height:0; overflow:hidden; transition:max-height .28s ease; background:rgba(0,0,0,0.12);
+    }
+    .accordion-content .inner-scroll{
+      max-height:420px; /* max visible area inside — can be increased */
+      overflow:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding:0;
+    }
+    .p-content{padding:16px}
+
+    .tree-list{display:flex;flex-direction:column;gap:6px}
+    .tree-node{padding:10px;border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono';font-size:.85rem;background:rgba(255,255,255,0.02);border-left:2px solid transparent;cursor:pointer}
+    .tree-node.active{background:rgba(0,242,255,0.09);border-left-color:var(--accent);color:var(--accent)}
+    .tree-node i{opacity:.6}
+
+    .control-row{margin-bottom:16px}
+    .label-row{display:flex;justify-content:space-between;margin-bottom:8px}
+    .c-label{font-size:.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase}
+    .c-val{font-size:.75rem;color:var(--accent);font-family:'JetBrains Mono'}
+
+    input[type="range"]{width:100%;height:6px;background:#333;border-radius:3px;appearance:none}
+    input[type="range"]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:var(--text-main);border:2px solid var(--bg-void)}
+    input[type="range"]:active::-webkit-slider-thumb{background:var(--accent);transform:scale(1.12)}
+
+    .preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .preset-btn{padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border);background:rgba(255,255,255,0.03);color:var(--text-muted);text-align:center;font-weight:600;cursor:pointer}
+    .preset-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+
+    .groups-wrap{display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:0 8px}
+    .group-chip{padding:6px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(255,255,255,0.02);cursor:pointer;font-size:.82rem}
+    .group-chip.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent);}
+
+    .fab-scan{position:fixed;right:20px;bottom:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);color:#000;border:none;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 12px 30px rgba(0,242,255,0.2);z-index:200;cursor:pointer}
+    .fab-scan:active{transform:scale(.95) rotate(10deg)}
+
+    @keyframes pulse{0%{opacity:1}50%{opacity:.5}100%{opacity:1}}
+
+    .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:rgba(0,0,0,0.8);color:#fff;padding:8px 12px;border-radius:8px;font-size:.85rem;z-index:400;opacity:0;pointer-events:none;transition:opacity .18s}
+    .toast.show{opacity:1;pointer-events:auto}
+
+    .no-response{color:#ff6b6b;font-size:0.9rem;text-align:center;padding:12px 0}
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand"><i class="fa-solid fa-cube"></i> NEBULA</div>
+    <div class="history-controls">
+      <button class="btn-icon" id="undoBtn" disabled title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+      <button class="btn-icon" id="redoBtn" disabled title="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+      <button class="btn-icon btn-primary" id="saveBtn" title="Save"><i class="fa-solid fa-floppy-disk"></i></button>
+    </div>
+  </header>
+
+  <!-- Main dashboard -->
+  <div class="dashboard" id="dashboard">
+    <!-- HERO -->
+    <div class="card hero-card">
+      <div id="noSelection" style="text-align:center;color:var(--text-muted);padding:20px;">
+        <i class="fa-solid fa-arrow-pointer" style="margin-bottom:8px;"></i><br> NO TARGET
+      </div>
+
+      <div id="heroContent" style="display:none;">
+        <div class="hero-header">
+          <div>
+            <span class="tag-badge" id="heroTag">DIV</span>
+            <span class="hero-id" id="heroId">#section-main</span>
+          </div>
+          <div style="font-size:.78rem;color:var(--text-muted);text-align:right;">
+            <i class="fa-solid fa-ruler-combined"></i> <span id="heroDims">0x0</span>
+          </div>
+        </div>
+
+        <div class="group-toggle" style="margin-bottom:12px;display:flex;background:#000;padding:6px;border-radius:8px;border:1px solid var(--border)">
+          <div class="g-opt selected" id="modeSingle" style="flex:1;text-align:center;padding:8px;font-weight:600;cursor:pointer" data-mode="single">SINGLE</div>
+          <div class="g-opt" id="modeGroup" style="flex:1;text-align:center;padding:8px;font-weight:600;cursor:pointer" data-mode="group">GROUP (CLASS)</div>
+        </div>
+
+        <div class="nav-grid">
+          <button class="nav-btn" data-nav="parent" title="Parent"><i class="fa-solid fa-arrow-up"></i></button>
+          <button class="nav-btn" data-nav="child" title="Child"><i class="fa-solid fa-arrow-down"></i></button>
+          <button class="nav-btn" data-nav="prev" title="Previous"><i class="fa-solid fa-arrow-left"></i></button>
+          <button class="nav-btn" data-nav="next" title="Next"><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- STACK: DOM TREE + GROUPS FILTER -->
+    <div class="card">
+      <div class="accordion-item">
+        <button class="accordion-header" aria-expanded="false">
+          <span><i class="fa-solid fa-sitemap" style="margin-right:8px"></i> DOM TREE</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+
+        <!-- accordion content: contains groups list + tree -->
+        <div class="accordion-content" role="region">
+          <div class="inner-scroll">
+            <!-- Groups list (chips) + Clear button -->
+            <div class="groups-wrap" id="groupsWrap" style="padding:8px 12px;">
+              <!-- dynamically populated -->
+              <div id="groupsList" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex:1"></div>
+              <button id="clearFilter" class="group-chip" title="Limpar filtro">Limpar</button>
+            </div>
+
+            <div class="p-content tree-list" id="domTree">
+              <!-- Tree items populados via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STACK: VISUAL LAB -->
+    <div class="card">
+      <div class="accordion-item">
+        <button class="accordion-header" aria-expanded="true">
+          <span><i class="fa-solid fa-sliders" style="margin-right:8px"></i> VISUAL LAB</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+
+        <div class="accordion-content open" role="region">
+          <div class="inner-scroll">
+            <div class="p-content">
+
+              <div class="control-row">
+                <div class="label-row"><span class="c-label">Opacity</span><span class="c-val" id="valOpacity">1.0</span></div>
+                <input type="range" id="inpOpacity" min="0" max="1" step="0.1" value="1">
+              </div>
+
+              <div class="control-row">
+                <div class="label-row"><span class="c-label">Scale</span><span class="c-val" id="valScale">1.0</span></div>
+                <input type="range" id="inpScale" min="0.5" max="1.5" step="0.05" value="1">
+              </div>
+
+              <div class="control-row">
+                <div class="label-row"><span class="c-label">Vertical Shift</span><span class="c-val" id="valY">0px</span></div>
+                <input type="range" id="inpY" min="-100" max="100" step="1" value="0">
+              </div>
+
+              <div class="control-row">
+                <div class="label-row"><span class="c-label">Filter (Blur)</span><span class="c-val" id="valBlur">0px</span></div>
+                <input type="range" id="inpBlur" min="0" max="20" step="1" value="0">
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRESETS -->
+    <div class="card">
+      <div class="accordion-item">
+        <button class="accordion-header" aria-expanded="false">
+          <span><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:8px"></i> PRESETS</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="accordion-content" role="region">
+          <div class="inner-scroll">
+            <div class="p-content">
+              <div class="preset-grid">
+                <div class="preset-btn active" data-preset="neutro"><i class="fa-regular fa-circle"></i> NEUTRO</div>
+                <div class="preset-btn" data-preset="focus"><i class="fa-solid fa-crosshairs"></i> FOCUS</div>
+                <div class="preset-btn" data-preset="relax"><i class="fa-solid fa-coffee"></i> RELAX</div>
+                <div class="preset-btn" data-preset="creative"><i class="fa-solid fa-palette"></i> CREATIVE</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CSS INJECTOR -->
+    <div class="card">
+      <div class="accordion-item">
+        <button class="accordion-header" aria-expanded="false">
+          <span><i class="fa-brands fa-css3" style="margin-right:8px"></i> CSS INJECTOR</span>
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <div class="accordion-content" role="region">
+          <div class="inner-scroll">
+            <div class="p-content">
+              <textarea class="code-editor" id="cssEditor" placeholder="/* Custom CSS here */&#10;body { background: #000; }" style="width:100%;min-height:120px;background:#0d0d0d;border:1px solid var(--border);color:#a5b3ce;padding:10px;border-radius:8px;font-family:'JetBrains Mono';"></textarea>
+              <button class="btn-icon btn-primary" id="injectCssBtn" style="width:100%;margin-top:10px;border-radius:6px">INJECT CSS</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Floating Action Button -->
+  <button class="fab-scan" id="fabScan" title="Scan Host"><i class="fa-solid fa-radar" id="fabIcon"></i></button>
+
+  <div class="toast" id="toast"></div>
+
+  <!--
+    NEBULA IFRAME - JS
+    - Escuta mensagens do host (NEBULA_SCAN_RES, NEBULA_UPDATE_ACK, etc.)
+    - Envia NEBULA_SCAN_REQ, NEBULA_HIGHLIGHT, NEBULA_UPDATE_STYLE, NEBULA_CSS_FILE
+    - Pronto para usar com ZabKit (snippet do host) — ver comentários de deploy abaixo.
+  -->
+  <script>
+    /* ===========
+       CONFIG / STATE
+       =========== */
+    const App = {
+      state: {
+        domTree: [],
+        groups: {},
+        selectedId: null,
+        selectedNode: null,
+        groupMode: 'single',
+        filterGroup: null,
+        presets: {
+          neutro: '',
+          focus: 'filter: grayscale(100%) contrast(1.2);',
+          relax: 'filter: sepia(60%) brightness(0.9);',
+          creative: 'filter: hue-rotate(90deg) saturate(1.5); box-shadow: 0 0 20px rgba(0,242,255,0.5);'
+        }
+      },
+      _scanTimeout: null,
+      _updateTimer: null,
+      _debounceDelay: 90
+    };
+
+    /* ===========
+       UTILITIES
+       =========== */
+    function el(id) { return document.getElementById(id); }
+    function showToast(msg, time = 1600) {
+      const t = el('toast');
+      if(!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), time);
+    }
+
+    /* ===========
+       INIT
+       =========== */
+    App.init = function() {
+      this.cache();
+      this.bindControls();
+      this.attachAccordionBehavior();
+      this.setInitialAccordionHeights();
+      window.addEventListener('message', (e) => this.handleMessage(e));
+      // Auto-scan once after load (can be disabled)
+      setTimeout(() => this.scanHost(), 700);
+    };
+
+    App.cache = function() {
+      this.domTreeContainer = el('domTree');
+      this.groupsListEl = el('groupsList');
+      this.groupsWrap = el('groupsWrap');
+      this.fabScan = el('fabScan');
+      this.fabIcon = el('fabIcon');
+      this.heroContent = el('heroContent');
+      this.noSelection = el('noSelection');
+    };
+
+    /* ===========
+       SCAN FLOW
+       =========== */
+    App.scanHost = function() {
+      if(this.fabIcon) this.fabIcon.classList.add('fa-spin');
+      window.parent.postMessage({ type: 'NEBULA_SCAN_REQ' }, '*');
+
+      if(this._scanTimeout) clearTimeout(this._scanTimeout);
+      this._scanTimeout = setTimeout(() => {
+        if(this.fabIcon) this.fabIcon.classList.remove('fa-spin');
+        showToast('Sem resposta do host — cole ZabKit no host ou verifique CORS');
+        this.noSelection.innerHTML = '<div class="no-response">Nenhuma resposta do host (scan falhou).</div>';
+      }, 1500);
+    };
+
+    App.handleMessage = function(e) {
+      const data = e.data || {};
+      if(!data.type) return;
+
+      if(data.type === 'NEBULA_SCAN_RES') {
+        if(this._scanTimeout) { clearTimeout(this._scanTimeout); this._scanTimeout = null; }
+        if(this.fabIcon) this.fabIcon.classList.remove('fa-spin');
+
+        this.state.domTree = Array.isArray(data.tree) ? data.tree : [];
+        this.state.groups = data.groups || {};
+        this.noSelection.innerHTML = '<div style="color:var(--text-muted)">Scan completo.</div>';
+        this.renderGroups();
+        this.renderTree();
+        showToast('Scan recebido ✔');
+      }
+
+      // optional ack handlers for future feedback
+      if(data.type === 'NEBULA_HIGHLIGHT_ACK') {
+        // could show small ack
+      }
+      if(data.type === 'NEBULA_UPDATE_ACK') {
+        // ack for styles applied
+      }
+      if(data.type === 'NEBULA_CSS_ACK') {
+        showToast('CSS injetado no host');
+      }
+    };
+
+    /* ===========
+       RENDER: GROUPS
+       =========== */
+    App.renderGroups = function() {
+      const c = this.groupsListEl;
+      c.innerHTML = '';
+      const groups = this.state.groups || {};
+      const keys = Object.keys(groups).filter(k => k !== '__ungrouped');
+      // show ungrouped as first chip if present
+      if(this.state.groups.__ungrouped && this.state.groups.__ungrouped.length) {
+        const chip = this.createGroupChip('__ungrouped', `__ungrouped (${this.state.groups.__ungrouped.length})`);
+        c.appendChild(chip);
+      }
+      if(keys.length === 0 && (!this.state.groups.__ungrouped || !this.state.groups.__ungrouped.length)) {
+        c.innerHTML = '<div style="opacity:.6">Nenhum grupo</div>';
+        return;
+      }
+
+      keys.forEach(k => {
+        const chip = this.createGroupChip(k, `${k} (${this.state.groups[k].length})`);
+        c.appendChild(chip);
+      });
+    };
+
+    App.createGroupChip = function(key, label) {
+      const btn = document.createElement('button');
+      btn.className = 'group-chip';
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        // toggle active
+        document.querySelectorAll('.group-chip').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.filterByGroup(key);
+      });
+      return btn;
+    };
+
+    App.filterByGroup = function(group) {
+      this.state.filterGroup = group;
+      const list = (this.state.groups && this.state.groups[group]) || [];
+      this.renderTree(list);
+    };
+
+    /* ===========
+       RENDER: TREE
+       =========== */
+    App.renderTree = function(list) {
+      const dataList = Array.isArray(list) ? list : this.state.domTree;
+      const container = this.domTreeContainer;
+      container.innerHTML = '';
+      dataList.forEach(node => {
+        const div = document.createElement('div');
+        div.className = 'tree-node';
+        if(this.state.selectedId === node.id) div.classList.add('active');
+        div.setAttribute('data-id', node.id);
+        div.innerHTML = `<i class="fa-solid ${node.isContainer ? 'fa-folder' : 'fa-cube'}"></i><span style="flex:1">${node.tag}</span><span style="opacity:.55;font-size:.8rem">${(node.text||'').substr(0,40)}</span>`;
+        div.addEventListener('click', () => {
+          this.selectNode(node.id);
+          // request highlight in host
+          window.parent.postMessage({ type: 'NEBULA_HIGHLIGHT', id: node.id }, '*');
+        });
+        container.appendChild(div);
+      });
+      // scroll selected into view (if any)
+      const sel = container.querySelector(`[data-id="${this.state.selectedId}"]`);
+      if(sel) sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    App.selectNode = function(id) {
+      const node = this.state.domTree.find(n => n.id === id) || (this.state.groups && (Object.values(this.state.groups).flat().find(n => n.id === id)));
+      if(!node) return;
+      this.state.selectedId = id;
+      this.state.selectedNode = node;
+      // highlight host element
+      window.parent.postMessage({ type: 'NEBULA_HIGHLIGHT', id }, '*');
+
+      // UI update
+      if(this.noSelection) this.noSelection.style.display = 'none';
+      if(this.heroContent) this.heroContent.style.display = 'block';
+      el('heroTag').innerText = (node.tag || 'div').toUpperCase();
+      el('heroId').innerText = '#' + id;
+      // re-render tree to show active state
+      this.renderTree();
+    };
+
+    /* ===========
+       ACCORDION: dynamic heights + allow multiple open
+       =========== */
+    App.attachAccordionBehavior = function() {
+      const headers = document.querySelectorAll('.accordion-header');
+      headers.forEach(hdr => {
+        hdr.addEventListener('click', () => this.toggleAccordion(hdr));
+        hdr.addEventListener('keydown', (ev) => {
+          if(ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            this.toggleAccordion(hdr);
+          }
+        });
+      });
+    };
+
+    App.setInitialAccordionHeights = function() {
+      const contents = document.querySelectorAll('.accordion-content');
+      contents.forEach(c => {
+        if(c.classList.contains('open')) {
+          c.style.maxHeight = c.querySelector('.inner-scroll').scrollHeight + 'px';
+          const hdr = c.previousElementSibling;
+          if(hdr) hdr.classList.add('active');
+          if(hdr) hdr.setAttribute('aria-expanded','true');
+        } else {
+          c.style.maxHeight = '0px';
+          const hdr = c.previousElementSibling;
+          if(hdr) hdr.setAttribute('aria-expanded','false');
+        }
+      });
+    };
+
+    App.toggleAccordion = function(headerBtn) {
+      const content = headerBtn.nextElementSibling;
+      if(!content) return;
+      const inner = content.querySelector('.inner-scroll');
+      const isOpen = content.classList.contains('open');
+
+      if(isOpen) {
+        // close
+        content.style.maxHeight = inner.scrollHeight + 'px';
+        requestAnimationFrame(() => {
+          content.style.maxHeight = '0px';
+        });
+        content.classList.remove('open');
+        headerBtn.classList.remove('active');
+        headerBtn.setAttribute('aria-expanded','false');
+      } else {
+        // open (multiple allowed)
+        content.classList.add('open');
+        headerBtn.classList.add('active');
+        headerBtn.setAttribute('aria-expanded','true');
+        const targetHeight = inner.scrollHeight + 'px';
+        content.style.maxHeight = '0px';
+        requestAnimationFrame(() => {
+          content.style.maxHeight = targetHeight;
+        });
+      }
+    };
+
+    /* ===========
+       CONTROLS BINDING + DEBOUNCE SEND
+       =========== */
+    App.bindControls = function() {
+      // group mode toggle
+      document.querySelectorAll('.g-opt').forEach(el => {
+        el.addEventListener('click', () => {
+          const mode = el.dataset.mode || (el.id === 'modeSingle' ? 'single' : 'group');
+          this.state.groupMode = mode;
+          document.querySelectorAll('.g-opt').forEach(x => x.classList.remove('selected'));
+          el.classList.add('selected');
+        });
+      });
+
+      // nav buttons
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          this.navDom(btn.dataset.nav);
+        });
+      });
+
+      // presets
+      document.querySelectorAll('.preset-btn').forEach(b => {
+        b.addEventListener('click', () => {
+          const p = b.dataset.preset;
+          document.querySelectorAll('.preset-btn').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          this.applyPreset(p);
+        });
+      });
+
+      // inject css
+      el('injectCssBtn').addEventListener('click', () => this.injectRawCss());
+
+      // clear filter
+      el('clearFilter').addEventListener('click', () => {
+        this.state.filterGroup = null;
+        document.querySelectorAll('.group-chip').forEach(c => c.classList.remove('active'));
+        this.renderTree();
+      });
+
+      // sliders mapping with UI text + debounce
+      const map = [
+        {id:'inpOpacity', out:'valOpacity'},
+        {id:'inpScale', out:'valScale'},
+        {id:'inpY', out:'valY'},
+        {id:'inpBlur', out:'valBlur'}
+      ];
+      map.forEach(m => {
+        const node = el(m.id);
+        if(!node) return;
+        node.addEventListener('input', (ev) => {
+          const valEl = el(m.out);
+          let display = ev.target.value;
+          if(m.id === 'inpY') display = `${display}px`;
+          if(m.id === 'inpOpacity') display = Number(display).toFixed(1);
+          if(m.id === 'inpScale') display = Number(display).toFixed(2);
+          if(m.id === 'inpBlur') display = `${display}px`;
+          if(valEl) valEl.innerText = display;
+          this.debouncedSendStyle();
+        });
+      });
+
+      // fab scan
+      if(this.fabScan) this.fabScan.addEventListener('click', () => this.scanHost());
+
+      // save stub
+      el('saveBtn').addEventListener('click', () => showToast('Config salvo no Vault (stub)'));
+    };
+
+    App.debouncedSendStyle = function() {
+      if(this._updateTimer) clearTimeout(this._updateTimer);
+      this._updateTimer = setTimeout(() => this.sendUpdate(), this._debounceDelay);
+    };
+
+    App.sendUpdate = function() {
+      if(!this.state.selectedId) return;
+      const scale = el('inpScale').value;
+      const y = el('inpY').value;
+      const opacity = el('inpOpacity').value;
+      const blur = el('inpBlur').value;
+
+      const styles = {
+        transform: `scale(${scale}) translateY(${y}px)`,
+        opacity: opacity,
+        filter: `blur(${blur}px)`
+      };
+
+      window.parent.postMessage({
+        type: 'NEBULA_UPDATE_STYLE',
+        id: this.state.selectedId,
+        styles,
+        mode: this.state.groupMode,
+        classes: this.state.selectedNode ? this.state.selectedNode.classes : ''
+      }, '*');
+    };
+
+    /* ===========
+       NAV (prev/next) simplistic
+       =========== */
+    App.navDom = function(direction) {
+      if(!this.state.domTree.length) return;
+      const idx = this.state.domTree.findIndex(n => n.id === this.state.selectedId);
+      if(idx === -1) return;
+      let newIdx = idx;
+      if(direction === 'next') newIdx = Math.min(idx + 1, this.state.domTree.length - 1);
+      if(direction === 'prev') newIdx = Math.max(idx - 1, 0);
+      // parent/child not implemented (requires tree structure)
+      if(newIdx !== idx) this.selectNode(this.state.domTree[newIdx].id);
+    };
+
+    /* ===========
+       PRESETS / INJECT CSS
+       =========== */
+    App.applyPreset = function(name) {
+      if(!this.state.selectedId) return showToast('Selecione um elemento primeiro!');
+      if(name === 'neutro') {
+        el('inpOpacity').value = 1;
+        el('inpScale').value = 1;
+        el('inpBlur').value = 0;
+        el('valOpacity').innerText = '1.0';
+        el('valScale').innerText = '1.0';
+        el('valBlur').innerText = '0px';
+        this.debouncedSendStyle();
+        window.parent.postMessage({ type: 'NEBULA_UPDATE_STYLE', id: this.state.selectedId, styles: { filter: 'none', transform: 'none', opacity: '1' } }, '*');
+      } else if(name === 'focus') {
+        window.parent.postMessage({ type: 'NEBULA_UPDATE_STYLE', id: this.state.selectedId, styles: { filter: 'grayscale(100%) contrast(120%)' } }, '*');
+      } else if(name === 'relax') {
+        window.parent.postMessage({ type: 'NEBULA_UPDATE_STYLE', id: this.state.selectedId, styles: { filter: 'sepia(60%) brightness(90%)' } }, '*');
+      } else if(name === 'creative') {
+        window.parent.postMessage({ type: 'NEBULA_UPDATE_STYLE', id: this.state.selectedId, styles: { filter: 'hue-rotate(90deg) saturate(150%)', outline: '2px dashed #bd00ff' } }, '*');
+      }
+    };
+
+    App.injectRawCss = function() {
+      const css = el('cssEditor').value || '';
+      const fileId = Date.now();
+      window.parent.postMessage({ type: 'NEBULA_CSS_FILE', fileId, content: css, active: true }, '*');
+      showToast('Enviando CSS para o host...');
+    };
+
+    /* ===========
+       START
+       =========== */
+    window.addEventListener('load', () => App.init());
+  </script>
+
+  <!--
+    DEPLOY NOTES (read before deploying)
+    ------------------------------------
+    1) Este arquivo é a interface IFRAME (NEBULA). Para o scan funcionar corretamente, a PÁGINA PAI
+       precisa expor um listener que responda a 'NEBULA_SCAN_REQ' com 'NEBULA_SCAN_RES'.
+       - Recomendo colar o snippet ZabKit (fornecido separadamente) no host (console ou código do host).
+       - Se você controla a página pai, inclua ZabKit como um script no head para instalar automaticamente.
+
+    2) Cross-origin: se o IFRAME estiver em outro domínio, o host deve aceitar postMessage e responder
+       com e.origin certinho. O código atual usa '*' para compatibilidade; se possível, restrinja a origem.
+
+    3) ZabKit (host-snippet) responsabilidades:
+       - detectar botões (button, [role="button"], input[type=button|submit], links com data-button)
+       - garantir IDs únicos (adiciona se não existir)
+       - retornar objeto: { tree: [...nodes], groups: { className: [nodes], ... , __ungrouped: [...] } }
+       - tratar NEBULA_HIGHLIGHT, NEBULA_UPDATE_STYLE, NEBULA_CSS_FILE
+
+    4) TEST FLOW:
+       - Abra página pai (onde os botões estão)
+       - Cole ZabKit snippet no console (ou inclua no código do host)
+       - Abra NEBULA IFRAME e clique no FAB "Scan"
+       - Deverá aparecer lista de botões e chips de grupos; clicar em item destaca host e mostra controls.
+
+    5) CUSTOMIZAÇÕES RÁPIDAS:
+       - Mudar tamanho máximo interno dos accordions: .accordion-content .inner-scroll { max-height: 420px; }
+       - Tornar accordion exclusivo (apenas 1 aberto): alterar toggleAccordion para fechar outros ao abrir.
+       - Habilitar retries automáticos no scan: adicionar lógica de backoff em scanHost().
+
+    6) SEGURANÇA:
+       - Use ZabKit apenas em páginas de confiança (o snippet manipula DOM / injeta CSS).
+       - Em ambientes de produção, valide origem (postMessage) ao responder.
+
+    7) Se quiser, eu te mando:
+       - O snippet ZabKit pronto como bookmarklet (1-clique).
+       - Versão com accordion exclusivo ou com retry/backoff no scan.
+       - Minificação do arquivo para produção.
+  -->
+
+</body>
+</html>

@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nebula Pro — Editor (Scan Robust)</title>
+<style>
+  :root{
+    --bg:#050507; --card:#0e0e12; --accent:#00f2ff; --muted:#7b7b7b; --text:#e9eef2;
+    --border: #17171a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui; -webkit-font-smoothing:antialiased}
+  .app{display:flex; flex-direction:column; height:100vh; gap:12px; padding:12px}
+  header{display:flex; justify-content:space-between; align-items:center}
+  .brand{font-weight:700; color:var(--accent)}
+  .btn{padding:10px 12px; border-radius:10px; border:none; font-weight:700; cursor:pointer}
+  .btn.primary{background:var(--accent); color:#000}
+  .btn.ghost{background:transparent; border:1px solid rgba(255,255,255,0.04); color:var(--muted)}
+  main{flex:1; overflow:auto; display:flex; flex-direction:column; gap:12px}
+  .card{background:var(--card); border-radius:12px; padding:12px; border:1px solid var(--border)}
+  .muted{color:var(--muted); font-size:13px}
+  .list .item{padding:10px; border-radius:8px; cursor:pointer; margin-bottom:8px; border-left:3px solid transparent}
+  .list .item:hover{background:rgba(255,255,255,0.02)}
+  .list .item.selected{border-left-color:var(--accent); background:rgba(0,242,255,0.05)}
+  label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px}
+  input[type=range]{width:100%}
+  input[type=color]{height:36px; width:44px; border-radius:8px; border:1px solid rgba(255,255,255,0.03)}
+  .row{display:flex; gap:8px}
+  .small{font-size:13px; color:var(--muted)}
+  footer{display:flex; gap:8px; justify-content:space-between; align-items:center}
+  @media(min-width:720px){ .app{padding:18px} }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">☄️ Nebula · Editor</div>
+      <div style="display:flex; gap:8px">
+        <button id="scanBtn" class="btn ghost" title="Scan host">SCAN</button>
+        <button id="applyPresetBtn" class="btn ghost" title="Aplicar preset">APLICAR PRESET</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- status -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center">
+          <div>
+            <div class="small">Host</div>
+            <div id="hostLabel">—</div>
+          </div>
+          <div>
+            <div class="small">NODES</div>
+            <div id="nodeCount">0</div>
+          </div>
+        </div>
+        <div id="scanFeedback" class="muted" style="margin-top:8px">Pronto</div>
+      </div>
+
+      <!-- list -->
+      <div class="card list" id="listCard">
+        <div id="list">
+          <div class="muted">Aperte SCAN para detectar elementos</div>
+        </div>
+      </div>
+
+      <!-- controls -->
+      <div class="card" id="controlsCard" style="display:none">
+        <div style="margin-bottom:10px">
+          <div id="selTitle" style="font-weight:700">#id</div>
+          <div id="selInfo" class="small">tag • grupo</div>
+        </div>
+
+        <div>
+          <label>Opacidade</label>
+          <input id="inpOpacity" type="range" min="0" max="1" step="0.05" value="1">
+        </div>
+
+        <div style="margin-top:8px">
+          <label>Scale</label>
+          <input id="inpScale" type="range" min="0.5" max="2" step="0.05" value="1">
+        </div>
+
+        <div style="margin-top:8px">
+          <label>Pos Y</label>
+          <input id="inpY" type="range" min="-200" max="200" step="1" value="0">
+        </div>
+
+        <div style="margin-top:10px" class="row">
+          <button id="applyBtn" class="btn primary">Aplicar</button>
+          <button id="savePresetBtn" class="btn ghost">Salvar Preset</button>
+        </div>
+      </div>
+
+      <!-- presets -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+          <div style="font-weight:700">Presets</div>
+          <div class="small">3 embutidos • + salvar</div>
+        </div>
+        <div id="presetList" style="display:flex; gap:8px; overflow:auto"></div>
+      </div>
+
+    </main>
+
+    <footer>
+      <div class="small">Versão simplificada — scan robusto</div>
+      <div style="display:flex; gap:8px">
+        <button id="exportBtn" class="btn ghost">Export</button>
+        <button id="importBtn" class="btn ghost">Import</button>
+      </div>
+    </footer>
+  </div>
+
+<script>
+/* Nebula Pro — Simplified with robust scan (postMessage + same-origin + fallback local)
+   Message protocol used:
+   - sends: { type: 'SCAN_REQ' }  -> expects { type: 'SCAN_RES', elements: [...] }
+   - sends: { type: 'NEBULA_UPDATE_STYLE', id, styles } to ask host to apply styles
+   If same-origin, will directly apply styles to parent document elements.
+*/
+
+const UI = {
+  scanBtn: document.getElementById('scanBtn'),
+  list: document.getElementById('list'),
+  hostLabel: document.getElementById('hostLabel'),
+  nodeCount: document.getElementById('nodeCount'),
+  scanFeedback: document.getElementById('scanFeedback'),
+  controlsCard: document.getElementById('controlsCard'),
+  selTitle: document.getElementById('selTitle'),
+  selInfo: document.getElementById('selInfo'),
+  inpOpacity: document.getElementById('inpOpacity'),
+  inpScale: document.getElementById('inpScale'),
+  inpY: document.getElementById('inpY'),
+  applyBtn: document.getElementById('applyBtn'),
+  savePresetBtn: document.getElementById('savePresetBtn'),
+  presetList: document.getElementById('presetList'),
+  exportBtn: document.getElementById('exportBtn'),
+  importBtn: document.getElementById('importBtn'),
+  applyPresetBtn: document.getElementById('applyPresetBtn'),
+  scanTimeoutRef: null
+};
+
+const State = {
+  nodes: [], // { id, tag, text, group }
+  selected: null,
+  presets: JSON.parse(localStorage.getItem('nebula_presets_simple') || '[]')
+};
+
+// built-in presets
+const BUILTIN = [
+  { id:'neutral', name:'Neutro', css: ''},
+  { id:'focus', name:'Foco', css: '/* foco */ body{filter:contrast(1.05) saturate(1.05);}'},
+  { id:'relax', name:'Relax', css: '/* relax */ body{opacity:0.98;}'}
+];
+
+// helper UID
+function uid(prefix='id'){ return prefix + '-' + (Date.now()%100000) + '-' + Math.floor(Math.random()*999); }
+
+// ---------- SCAN logic ----------
+function tryScan() {
+  UI.scanFeedback.textContent = 'Enviando SCAN_REQ por postMessage…';
+  UI.hostLabel.textContent = '—';
+  UI.nodeCount.textContent = '—';
+
+  let responded = false;
+
+  // Handler for host response
+  function onMessage(e) {
+    if (!e.data || typeof e.data !== 'object') return;
+    if (e.data.type === 'SCAN_RES' && Array.isArray(e.data.elements)) {
+      responded = true;
+      window.removeEventListener('message', onMessage);
+      clearTimeout(UI.scanTimeoutRef);
+      UI.scanFeedback.textContent = 'Recebeu resposta do host via postMessage';
+      UI.hostLabel.textContent = e.origin || e.data.host || 'host';
+      renderNodes(e.data.elements);
+    }
+  }
+  window.addEventListener('message', onMessage);
+
+  // send postMessage request
+  window.parent.postMessage({ type: 'SCAN_REQ' }, '*');
+
+  // wait short time for response, then try same-origin parent if no response
+  UI.scanTimeoutRef = setTimeout(async () => {
+    if (responded) return;
+    window.removeEventListener('message', onMessage);
+    UI.scanFeedback.textContent = 'Sem resposta via postMessage — tentando acesso same-origin ao parent…';
+    // attempt same-origin parent scan
+    try {
+      if (window.parent && window.parent !== window && window.parent.document) {
+        const parentDoc = window.parent.document;
+        const elements = scanDocumentForNodes(parentDoc);
+        if (elements.length) {
+          UI.scanFeedback.textContent = 'Scan via parent.document (same-origin) concluído';
+          UI.hostLabel.textContent = 'parent (same-origin)';
+          renderNodes(elements);
+          return;
+        } else {
+          UI.scanFeedback.textContent = 'Parent same-origin sem nodes relevantes — tentando scan local…';
+        }
+      } else {
+        UI.scanFeedback.textContent = 'Parent inacessível — tentando scan local…';
+      }
+    } catch (err) {
+      UI.scanFeedback.textContent = 'Acesso parent bloqueado (cross-origin) — scan local…';
+    }
+
+    // fallback to local document scan
+    const localNodes = scanDocumentForNodes(document);
+    UI.scanFeedback.textContent = 'Scan local concluído';
+    UI.hostLabel.textContent = 'local';
+    renderNodes(localNodes);
+  }, 600); // 600ms espera por postMessage
+}
+
+// scan helper: collect elements with id or build ids for top-level elements
+function scanDocumentForNodes(doc) {
+  const out = [];
+  // first collect elements with id (useful)
+  const withId = Array.from(doc.querySelectorAll('[id]'));
+  withId.forEach(el => {
+    out.push({ id: el.id, tag: el.tagName.toLowerCase(), text: (el.textContent||'').trim().slice(0,60), group: el.parentElement ? el.parentElement.tagName.toLowerCase() : 'root' });
+  });
+  if (out.length) return out;
+
+  // otherwise, gather a selection of visible elements (top 50)
+  const elements = Array.from(doc.querySelectorAll('body *')).filter(e => {
+    // skip scripts, meta, link
+    const t = e.tagName.toLowerCase();
+    if (['script','style','link','meta','svg','path'].includes(t)) return false;
+    // check visible
+    const rect = e.getBoundingClientRect ? e.getBoundingClientRect() : {width:0,height:0};
+    return rect.width > 0 && rect.height > 0;
+  }).slice(0,50);
+
+  elements.forEach((el,i)=>{
+    const id = el.getAttribute('data-neb-id') || ('neb-' + (i+1));
+    if (!el.getAttribute('data-neb-id')) el.setAttribute('data-neb-id', id);
+    out.push({ id, tag: el.tagName.toLowerCase(), text: (el.textContent||'').trim().slice(0,60), group: el.parentElement ? el.parentElement.tagName.toLowerCase() : 'root' });
+  });
+  return out;
+}
+
+// render
+function renderNodes(nodes) {
+  State.nodes = nodes || [];
+  UI.list.innerHTML = '';
+  UI.nodeCount.textContent = (State.nodes.length || 0);
+  if (!State.nodes.length) {
+    UI.list.innerHTML = '<div class="muted">Nenhum elemento encontrado</div>';
+    return;
+  }
+  State.nodes.forEach(n=>{
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `<div style="font-weight:700">${n.id}</div><small>&lt;${n.tag}&gt; • ${n.group || '—'}</small>`;
+    div.onclick = () => selectNode(n, div);
+    UI.list.appendChild(div);
+  });
+  // select first by default
+  selectNode(State.nodes[0], UI.list.children[0]);
+}
+
+// selection
+function selectNode(n, uiEl) {
+  // ui
+  Array.from(document.querySelectorAll('.list .item')).forEach(it=> it.classList.remove('selected'));
+  uiEl && uiEl.classList.add('selected');
+
+  State.selected = n;
+  UI.selTitle.textContent = '#' + n.id;
+  UI.selInfo.textContent = `<${n.tag}> • ${n.group || '—'}`;
+  UI.controlsCard.style.display = 'block';
+
+  // reset controls to default or preserved state if provided on node
+  UI.inpOpacity.value = n.state && n.state.opacity != null ? n.state.opacity : 1;
+  UI.inpScale.value = n.state && n.state.scale != null ? n.state.scale : 1;
+  UI.inpY.value = n.state && n.state.y != null ? n.state.y : 0;
+}
+
+// apply style (tries direct same-origin parent apply first, else postMessage)
+function applyStyleToSelected() {
+  if (!State.selected) return;
+  const styles = {
+    opacity: parseFloat(UI.inpOpacity.value),
+    transform: `scale(${parseFloat(UI.inpScale.value)}) translateY(${parseInt(UI.inpY.value)}px)`
+  };
+  // store local state
+  State.selected.state = styles;
+
+  // try same-origin parent apply
+  try {
+    if (window.parent && window.parent !== window && window.parent.document) {
+      const target = window.parent.document.getElementById(State.selected.id) || window.parent.document.querySelector(`[data-neb-id="${State.selected.id}"]`);
+      if (target) {
+        Object.assign(target.style, { opacity: styles.opacity, transform: styles.transform, transition: 'all 160ms ease' });
+        UI.scanFeedback.textContent = 'Estilo aplicado diretamente no parent (same-origin)';
+        return;
+      }
+    }
+  } catch (err) {
+    // cross-origin — fallback to postMessage
+  }
+
+  // fallback: ask host via postMessage to apply
+  window.parent.postMessage({ type:'NEBULA_UPDATE_STYLE', id: State.selected.id, styles }, '*');
+  UI.scanFeedback.textContent = 'Pedido enviado ao host (postMessage) para aplicar estilo';
+}
+
+// preset UI
+function renderPresets() {
+  UI.presetList.innerHTML = '';
+  const list = [...BUILTIN, ...State.presets];
+  list.forEach(p=>{
+    const b = document.createElement('button');
+    b.className = 'btn ghost';
+    b.style.minWidth = '84px';
+    b.textContent = p.name;
+    b.onclick = () => applyPreset(p);
+    UI.presetList.appendChild(b);
+  });
+}
+
+// apply preset (simple: inject css by postMessage or same-origin)
+function applyPreset(preset) {
+  if (!preset) return;
+  UI.scanFeedback.textContent = 'Aplicando preset: ' + preset.name;
+  // If preset has css string, try apply same-origin to parent document <style> or send postMessage
+  if (preset.css && preset.css.trim()) {
+    try {
+      if (window.parent && window.parent !== window && window.parent.document) {
+        const parentDoc = window.parent.document;
+        let styleEl = parentDoc.getElementById('nebula-preset-style');
+        if(!styleEl){
+          styleEl = parentDoc.createElement('style');
+          styleEl.id = 'nebula-preset-style';
+          parentDoc.head.appendChild(styleEl);
+        }
+        styleEl.textContent = preset.css;
+        UI.scanFeedback.textContent = 'Preset injetado diretamente no parent (same-origin): ' + preset.name;
+        return;
+      }
+    } catch(e){
+      // cannot access parent
+    }
+    // fallback: request host to inject css
+    window.parent.postMessage({ type:'NEBULA_CSS_INJECT', name: preset.name, content: preset.css }, '*');
+    UI.scanFeedback.textContent = 'Pedido ao host para injetar preset: ' + preset.name;
+  } else {
+    UI.scanFeedback.textContent = 'Preset sem CSS: ' + preset.name;
+  }
+}
+
+// saving custom preset
+function saveCurrentPreset(){
+  const name = prompt('Nome do preset:');
+  if(!name) return;
+  const css = ''; // we keep simple (if want to store per-element states, expand here)
+  const p = { id: uid('preset'), name, css };
+  State.presets.push(p);
+  localStorage.setItem('nebula_presets_simple', JSON.stringify(State.presets));
+  renderPresets();
+  alert('Preset salvo: ' + name);
+}
+
+// import/export simple
+UI.exportBtn.addEventListener('click', ()=>{
+  const data = { presets: State.presets };
+  const blob = new Blob([JSON.stringify(data, null,2)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'nebula-presets.json'; a.click();
+  URL.revokeObjectURL(a.href);
+});
+UI.importBtn.addEventListener('click', ()=>{
+  const input = document.createElement('input'); input.type='file'; input.accept='application/json';
+  input.onchange = (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const r = new FileReader(); r.onload = (ev)=>{
+      try{
+        const data = JSON.parse(ev.target.result || '{}');
+        if(Array.isArray(data.presets)) {
+          State.presets = data.presets;
+          localStorage.setItem('nebula_presets_simple', JSON.stringify(State.presets));
+          renderPresets();
+          alert('Presets importados');
+        } else alert('Arquivo inválido');
+      }catch(err){ alert('Erro ao importar') }
+    }; r.readAsText(f);
+  };
+  input.click();
+});
+
+// apply preset button quick cycle (example)
+UI.applyPresetBtn.addEventListener('click', ()=>{
+  // cycle builtin for demo
+  const list = BUILTIN;
+  const idx = Math.floor(Math.random() * list.length);
+  applyPreset(list[idx]);
+});
+
+// events
+UI.scanBtn.addEventListener('click', tryScan);
+UI.applyBtn.addEventListener('click', applyStyleToSelected);
+UI.savePresetBtn.addEventListener('click', saveCurrentPreset);
+
+// listen for host responses
+window.addEventListener('message', (e)=>{
+  const data = e.data || {};
+  if (!data || typeof data !== 'object') return;
+  if (data.type === 'SCAN_RES' && Array.isArray(data.elements)) {
+    // immediate render
+    UI.scanFeedback.textContent = 'SCAN_RES recebido do host';
+    UI.hostLabel.textContent = e.origin || data.host || 'host';
+    renderNodes(data.elements);
+  } else if (data.type === 'NEBULA_PONG') {
+    UI.scanFeedback.textContent = 'host disponível';
+  } else if (data.type === 'NEBULA_ACK') {
+    UI.scanFeedback.textContent = data.msg || 'ack';
+  }
+});
+
+// init UI
+(function init(){
+  renderPresets();
+})();
+</script>
+</body>
+</html>

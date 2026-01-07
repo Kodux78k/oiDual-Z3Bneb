@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>NEBULA PRO // Editor - Mobile First</title>
+
+<!-- CodeMirror 5 (editor CSS inline) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+
+<!-- Icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+
+<style>
+  :root{
+    --bg:#050507;
+    --panel:#0d0d0f;
+    --muted:#7b7b7b;
+    --accent:#00f2ff;
+    --accent-dim: rgba(0,242,255,0.06);
+    --success:#00ff88;
+    --glass: rgba(255,255,255,0.02);
+    --card-radius:12px;
+    --gap:12px;
+    --safe-padding:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{height:100%; margin:0; background:var(--bg); color:#e9eef2; font-family:Inter, system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial;}
+  /* App container vertical stack - mobile-first */
+  .app {
+    display:flex;
+    flex-direction:column;
+    gap:var(--gap);
+    height:100vh;
+    padding:env(safe-area-inset-top) var(--safe-padding) env(safe-area-inset-bottom);
+  }
+
+  header.app-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .brand {
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family: "JetBrains Mono", monospace;
+    font-weight:700;
+    color:var(--accent);
+  }
+  .brand small{font-weight:600; color:#fff}
+
+  .actions {
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .btn {
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.06);
+    color:var(--muted);
+    padding:9px 12px;
+    border-radius:10px;
+    font-weight:600;
+    font-size:0.9rem;
+    display:inline-flex;
+    gap:8px;
+    align-items:center;
+    cursor:pointer;
+  }
+  .btn.primary{ background:var(--accent); color:#000; border:none; }
+  .btn.icon { padding:9px; width:44px; height:44px; justify-content:center; }
+
+  /* Main vertical scroll area */
+  main {
+    overflow:auto;
+    -webkit-overflow-scrolling:touch;
+    display:flex;
+    flex-direction:column;
+    gap:var(--gap);
+    padding-bottom:12px;
+  }
+
+  /* Hero card / Preview */
+  .hero {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border:1px solid rgba(255,255,255,0.03);
+    padding:14px;
+    border-radius:var(--card-radius);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .hero-top {
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .preview-pulse {
+    width:56px; height:56px; border-radius:10px;
+    background:linear-gradient(135deg,var(--accent), #00b7ff);
+    display:flex; align-items:center; justify-content:center; font-weight:700; color:#001;
+    box-shadow:0 6px 18px rgba(0,242,255,0.06), inset 0 -6px 20px rgba(255,255,255,0.02);
+  }
+  .hero-info { display:flex; flex-direction:column; gap:4px; }
+  .hero-info .title { font-weight:700; color:var(--accent); letter-spacing:0.6px; }
+  .hero-info .subtitle { font-size:0.85rem; color:var(--muted) }
+
+  .hero-controls {
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  /* Stacked cards / accordions */
+  .stack { display:flex; flex-direction:column; gap:10px; }
+
+  .card {
+    background:var(--panel);
+    border-radius:12px;
+    padding:12px;
+    border:1px solid rgba(255,255,255,0.03);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+
+  .card .card-head {
+    display:flex; gap:8px; align-items:center; justify-content:space-between;
+  }
+  .card .card-title { font-weight:700; color:var(--accent); }
+  .card .card-sub { font-size:0.85rem; color:var(--muted) }
+
+  /* Accordion groups */
+  .accordion { display:flex; flex-direction:column; gap:8px; }
+  .accordion-item { overflow:hidden; border-radius:10px; background:linear-gradient(180deg,var(--glass),transparent); border:1px solid rgba(255,255,255,0.02) }
+  .accordion-head { padding:12px; display:flex; align-items:center; gap:12px; cursor:pointer; }
+  .accordion-head .label { font-weight:700; color:var(--accent); }
+  .accordion-body { padding:12px; display:none; gap:10px; flex-direction:column; }
+  .accordion-body.active { display:flex; }
+
+  .group-list { display:flex; gap:8px; overflow:auto; padding-bottom:6px }
+  .group-card { min-width:120px; padding:8px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.02); display:flex; flex-direction:column; gap:8px; }
+  .group-card .g-name { font-weight:700; color:#fff; font-size:0.95rem }
+  .group-card .g-actions { display:flex; gap:6px }
+
+  /* Controls inside cards */
+  .form-row { display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:6px; }
+  label.small { font-size:0.78rem; color:var(--muted); }
+
+  input[type=range]{ width:100%; }
+  input[type=color]{ border:none; height:38px; width:40px; padding:0; border-radius:8px; }
+
+  /* CSS manager */
+  .css-list { display:flex; flex-direction:column; gap:8px; margin-top:8px; }
+  .css-item { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px; border-radius:8px; background:#071; } 
+  .css-item .meta { display:flex; gap:10px; align-items:center; }
+  .css-item .name { font-weight:700; color:var(--text-main) }
+  .toggle { width:46px; height:26px; background:#222; border-radius:26px; position:relative; cursor:pointer; border:1px solid rgba(255,255,255,0.03) }
+  .toggle.on { background:var(--success) }
+  .toggle::after{ content:''; position:absolute; left:4px; top:4px; width:18px; height:18px; background:#fff; border-radius:50%; transition:0.22s }
+  .toggle.on::after{ left:24px }
+
+  /* Presets list */
+  .presets { display:flex; gap:8px; overflow:auto; padding:8px 0; }
+  .preset { min-width:120px; padding:10px; border-radius:10px; background:linear-gradient(180deg,var(--glass),transparent); border:1px solid rgba(255,255,255,0.03); display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+  .preset .name { font-weight:700; color:var(--text-main) }
+
+  /* Pages mini */
+  .pages { display:flex; gap:8px; overflow:auto; padding-top:8px }
+  .page-card { min-width:100px; padding:8px; border-radius:8px; background:#0b0b0d; border:1px solid rgba(255,255,255,0.02) }
+
+  /* Footer small controls */
+  .footer-actions { display:flex; gap:8px; margin-top:8px; justify-content:space-between; align-items:center; }
+
+  /* Responsive adjustments */
+  @media(min-width:720px){
+    .app { padding-left:28px; padding-right:28px; }
+    main { padding-bottom:20px; }
+    .hero-top { flex-direction:row }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="brand"><span style="font-size:1.05rem">☄️ NEBULA</span> <small>PRO</small></div>
+      <div class="actions" role="toolbar" aria-label="Ações principais">
+        <button class="btn icon" id="scanBtn" title="Scan Host"><i class="fa-solid fa-wave-square"></i></button>
+        <button class="btn icon" id="undoBtn" title="Desfazer"><i class="fa-solid fa-rotate-left"></i></button>
+        <button class="btn icon" id="redoBtn" title="Refazer"><i class="fa-solid fa-rotate-right"></i></button>
+        <button class="btn" id="saveBtn" title="Salvar Preset"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+        <button class="btn primary" id="exportBtn" title="Exportar Config">Export</button>
+      </div>
+    </header>
+
+    <!-- MAIN SCROLL -->
+    <main role="main">
+
+      <!-- HERO / PREVIEW -->
+      <section class="hero card" aria-label="Preview do elemento selecionado">
+        <div class="hero-top">
+          <div class="preview-pulse" id="previewBox">EL</div>
+          <div class="hero-info">
+            <div class="title" id="selTitle">Nenhum elemento selecionado</div>
+            <div class="subtitle" id="selMeta">Clique em SCAN para detectar</div>
+            <div class="hero-controls" id="heroActions">
+              <button class="btn icon" id="highlightBtn" title="Highlight no Host"><i class="fa-solid fa-eye"></i></button>
+              <button class="btn icon" id="copyBtn" title="Copiar seletor"><i class="fa-solid fa-copy"></i></button>
+              <button class="btn icon" id="clearSelBtn" title="Clear"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center; justify-content:space-between; margin-top:6px;">
+          <div style="font-size:0.85rem; color:var(--muted)">Host: <span id="hostLabel" style="color:var(--accent); font-weight:700">—</span></div>
+          <div style="font-size:0.85rem; color:var(--muted)" id="nodeCount">0 nodes</div>
+        </div>
+      </section>
+
+      <!-- GROUPS ACCORDION -->
+      <section class="card" aria-label="Grupos">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Grupos</div>
+            <div class="card-sub">Controle conjuntos de elementos por grupo</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" id="collapseAll">Colapsar</button>
+            <button class="btn" id="expandAll">Expandir</button>
+          </div>
+        </div>
+
+        <div class="accordion" id="groupsAccordion" style="margin-top:12px;">
+          <!-- Items dinamicos -->
+        </div>
+      </section>
+
+      <!-- VISUAL TWEAKS -->
+      <section class="card" aria-label="Visual tweaks">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Visual Tweaks</div>
+            <div class="card-sub">Ajuste em tempo real para o elemento selecionado</div>
+          </div>
+        </div>
+
+        <div id="noSelectionMsg" style="padding:16px; color:var(--muted)">Selecione um item da Hierarquia para editar aqui.</div>
+
+        <div id="controlsCard" style="display:none; margin-top:8px;">
+          <div class="form-row">
+            <label class="small">Opacity</label>
+            <input type="range" id="ctrlOpacity" min="0" max="1" step="0.01" value="1" />
+          </div>
+          <div class="form-row">
+            <label class="small">Scale</label>
+            <input type="range" id="ctrlScale" min="0.5" max="2" step="0.01" value="1" />
+          </div>
+          <div class="form-row">
+            <label class="small">Translate Y</label>
+            <input type="range" id="ctrlY" min="-200" max="200" value="0" />
+          </div>
+          <div class="form-row">
+            <label class="small">Background</label>
+            <input type="color" id="ctrlBg" value="#000000" />
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn" id="applyBtn">Aplicar</button>
+            <button class="btn" id="saveStyleBtn">Salvar Estilo</button>
+            <button class="btn" id="revertBtn">Reverter</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- CSS MANAGER -->
+      <section class="card" aria-label="CSS Manager">
+        <div class="card-head">
+          <div>
+            <div class="card-title">CSS Master</div>
+            <div class="card-sub">Upload, ativar/desativar e editar arquivos .css</div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn" id="newCssBtn"><i class="fa-solid fa-file-circle-plus"></i> Novo</button>
+            <button class="btn" id="importCssBtn"><i class="fa-solid fa-file-import"></i> Import</button>
+            <input type="file" id="cssUpload" accept=".css" style="display:none" />
+          </div>
+        </div>
+
+        <div class="css-list" id="cssList">
+          <!-- itens -->
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="card-sub" style="color:var(--muted)">Editor rápido</div>
+          <div id="codeEditorWrap" style="margin-top:8px; display:none;">
+            <textarea id="codeEditor" style="height:240px;"></textarea>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn" id="applyCssEdit">Aplicar</button>
+              <button class="btn" id="cancelCssEdit">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PRESETS -->
+      <section class="card" aria-label="Presets">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Presets</div>
+            <div class="card-sub">3 presets embutidos + Neutro (default)</div>
+          </div>
+          <div>
+            <button class="btn" id="resetDefaults">Reset Defaults</button>
+          </div>
+        </div>
+
+        <div class="presets" id="presetList">
+          <!-- presets -->
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="card-sub" style="color:var(--muted)">Salvar / carregar presets</div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn" id="importPresetBtn">Import</button>
+            <button class="btn" id="exportPresetBtn">Export</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- PAGES -->
+      <section class="card" aria-label="Pages">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Páginas</div>
+            <div class="card-sub">Abra e edite páginas (modo demo)</div>
+          </div>
+          <div>
+            <button class="btn" id="newPageBtn">Nova Página</button>
+          </div>
+        </div>
+
+        <div class="pages" id="pagesList">
+          <!-- pages -->
+        </div>
+      </section>
+
+      <div style="height:20px"></div>
+    </main>
+  </div>
+
+<script>
+/* NEBULA PRO - Mobile Editor JS
+   Comunicação via postMessage com host.
+   Presets embutidos: neutro, foco, relax, criativo
+*/
+(function(){
+
+  // ---------- State ----------
+  const State = {
+    host: null,
+    nodes: [],           // nodes from host: { id, tag, text, group, isContainer }
+    groups: {},          // groupName => { id, name, elements: [ids], visible:true, opacity:1, scale:1 }
+    selected: null,      // selected node id
+    cssFiles: [],        // { id, name, content, active }
+    presets: [],         // saved presets
+    undoStack: [],
+    redoStack: [],
+    editingCss: null     // reference for code edit
+  };
+
+  // Preload built-in presets
+  const BUILTIN_PRESETS = [
+    { id: 'preset-neutral', name: 'Neutro (Default)', date: (new Date()).toLocaleDateString(), cssFiles: [], meta: { vibe: 'neutral' } },
+    { id: 'preset-foco', name: 'Foco', date: (new Date()).toLocaleDateString(), cssFiles: [ {name:'foco.css', content: 'body { filter: contrast(1.05) saturate(1.02);} .highlight { box-shadow:0 8px 30px rgba(0,242,255,0.06);}'} ], meta:{vibe:'focus'} },
+    { id: 'preset-relax', name: 'Relax', date: (new Date()).toLocaleDateString(), cssFiles: [ {name:'relax.css', content: 'body{ background: linear-gradient(180deg,#071025,#021013);} * { transition: all 280ms ease; }'} ], meta:{vibe:'relax'} },
+    { id: 'preset-criativo', name: 'Criativo', date: (new Date()).toLocaleDateString(), cssFiles: [ {name:'criativo.css', content: '.floating { transform: translateY(-6px) rotate(-0.6deg); } .accent { filter: hue-rotate(20deg);}'} ], meta:{vibe:'creative'} }
+  ];
+
+  // ---------- DOM refs ----------
+  const scanBtn = document.getElementById('scanBtn');
+  const hostLabel = document.getElementById('hostLabel');
+  const nodeCountEl = document.getElementById('nodeCount');
+  const previewBox = document.getElementById('previewBox');
+  const selTitle = document.getElementById('selTitle');
+  const selMeta = document.getElementById('selMeta');
+
+  const groupsAccordion = document.getElementById('groupsAccordion');
+  const controlsCard = document.getElementById('controlsCard');
+  const noSelectionMsg = document.getElementById('noSelectionMsg');
+  const ctrlOpacity = document.getElementById('ctrlOpacity');
+  const ctrlScale = document.getElementById('ctrlScale');
+  const ctrlY = document.getElementById('ctrlY');
+  const ctrlBg = document.getElementById('ctrlBg');
+  const applyBtn = document.getElementById('applyBtn');
+  const saveStyleBtn = document.getElementById('saveStyleBtn');
+  const revertBtn = document.getElementById('revertBtn');
+
+  const cssList = document.getElementById('cssList');
+  const cssUpload = document.getElementById('cssUpload');
+  const codeEditorWrap = document.getElementById('codeEditorWrap');
+  const codeEditorTextarea = document.getElementById('codeEditor');
+
+  const presetList = document.getElementById('presetList');
+  const pagesList = document.getElementById('pagesList');
+
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const exportBtn = document.getElementById('exportBtn');
+
+  const highlightBtn = document.getElementById('highlightBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const clearSelBtn = document.getElementById('clearSelBtn');
+
+  // CodeMirror instance (initialized lazily)
+  let codeMirror = null;
+
+  // ---------- Utilities ----------
+  function postToHost(msg){
+    window.parent.postMessage(msg, '*');
+  }
+
+  function uid(prefix='id'){ return prefix + '-' + (Date.now()+Math.floor(Math.random()*999)); }
+
+  function pushUndo(action){
+    State.undoStack.push(action);
+    // keep size reasonable
+    if(State.undoStack.length > 80) State.undoStack.shift();
+    State.redoStack = [];
+    updateUndoUI();
+  }
+  function updateUndoUI(){ undoBtn.disabled = State.undoStack.length === 0; redoBtn.disabled = State.redoStack.length === 0; }
+
+  function pushRedo(action){
+    State.redoStack.push(action);
+    updateUndoUI();
+  }
+
+  function applyPreset(preset){
+    // push undo snapshot
+    pushUndo({ type:'preset-apply', prev: JSON.parse(JSON.stringify({ cssFiles: State.cssFiles })) });
+
+    // load css files from preset
+    State.cssFiles = (preset.cssFiles || []).map(f => ({ id: uid('css'), name: f.name || 'style.css', content: f.content || f, active: true }));
+    renderCssList();
+    // send to host each CSS
+    State.cssFiles.forEach(f => {
+      postToHost({ type:'NEBULA_CSS_FILE', fileId: f.id, content: f.content, active: f.active, name: f.name });
+    });
+    alert('Preset "' + preset.name + '" aplicado.');
+  }
+
+  // ---------- Render functions ----------
+  function renderGroups(){
+    groupsAccordion.innerHTML = '';
+    const groupNames = Object.keys(State.groups);
+    if(!groupNames.length){
+      groupsAccordion.innerHTML = '<div style="padding:12px; color:var(--muted)">Nenhum grupo detectado</div>';
+      return;
+    }
+
+    groupNames.forEach(gName => {
+      const g = State.groups[gName];
+      const item = document.createElement('div');
+      item.className = 'accordion-item';
+      item.innerHTML = `
+        <div class="accordion-head" data-group="${gName}">
+          <div style="display:flex;gap:12px;align-items:center">
+            <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--accent), #00b7ff);display:flex;align-items:center;justify-content:center;font-weight:800;color:#001">${(gName||'G').charAt(0).toUpperCase()}</div>
+            <div>
+              <div class="label">${gName}</div>
+              <div style="font-size:0.82rem;color:var(--muted)">${g.elements.length} items</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="card-sub" style="font-size:0.82rem;color:var(--muted)">${g.visible ? 'Visível' : 'Oculto'}</div>
+            <button class="btn icon toggleGroup">${g.visible ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>'}</button>
+            <button class="btn icon openGroup"><i class="fa-solid fa-angle-down"></i></button>
+          </div>
+        </div>
+        <div class="accordion-body">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1">
+                <label class="small">Opacity</label>
+                <input type="range" min="0" max="1" step="0.01" class="grp-opacity" value="${g.opacity ?? 1}">
+              </div>
+              <div style="width:80px">
+                <label class="small">Scale</label>
+                <input type="range" min="0.5" max="2" step="0.01" class="grp-scale" value="${g.scale ?? 1}">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn applyGroup">Aplicar no Grupo</button>
+              <button class="btn" data-group-id="${gName}" onclick="navigator.clipboard?.writeText('${gName}')">Copiar Nome</button>
+            </div>
+          </div>
+        </div>
+      `;
+      groupsAccordion.appendChild(item);
+
+      // hook events
+      const head = item.querySelector('.accordion-head');
+      const openBtn = head.querySelector('.openGroup');
+      const body = item.querySelector('.accordion-body');
+      openBtn.addEventListener('click', ()=>{
+        body.classList.toggle('active');
+      });
+      const toggleBtn = head.querySelector('.toggleGroup');
+      toggleBtn.addEventListener('click', ()=>{
+        g.visible = !g.visible;
+        pushUndo({type:'group-toggle', group:gName, prev: !g.visible});
+        // update UI quickly
+        head.querySelector('.card-sub').textContent = g.visible ? 'Visível' : 'Oculto';
+        toggleBtn.innerHTML = g.visible ? '<i class="fa-solid fa-eye"></i>' : '<i class="fa-solid fa-eye-slash"></i>';
+        // notify host
+        postToHost({ type:'NEBULA_GROUP_TOGGLE', group: gName, visible: g.visible });
+      });
+
+      const applyBtnEl = item.querySelector('.applyGroup');
+      applyBtnEl.addEventListener('click', ()=>{
+        const opacity = parseFloat(item.querySelector('.grp-opacity').value);
+        const scale = parseFloat(item.querySelector('.grp-scale').value);
+        // push undo
+        pushUndo({ type:'group-style', group: gName, prev: { opacity: g.opacity, scale: g.scale } });
+        // set state
+        g.opacity = opacity; g.scale = scale;
+        // tell host to apply to elements in group
+        postToHost({ type:'NEBULA_UPDATE_GROUP', group: gName, styles: { opacity, transform: `scale(${scale})` } });
+        alert('Estilos aplicados no grupo ' + gName);
+      });
+    });
+  }
+
+  function renderCssList(){
+    cssList.innerHTML = '';
+    if(!State.cssFiles.length) cssList.innerHTML = '<div style="color:var(--muted)">Nenhum arquivo CSS carregado</div>';
+    State.cssFiles.forEach(f => {
+      const el = document.createElement('div'); el.className = 'css-item';
+      el.innerHTML = `
+        <div class="meta">
+          <i class="fa-brands fa-css3-alt" style="color:var(--accent)"></i>
+          <div style="display:flex;flex-direction:column">
+            <div class="name">${f.name}</div>
+            <div style="font-size:0.8rem;color:var(--muted)">${f.active ? 'Ativo' : 'Inativo'}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="toggle ${f.active ? 'on' : ''}" data-id="${f.id}"></div>
+          <button class="btn" data-id-edit="${f.id}">Editar</button>
+          <button class="btn" data-id-remove="${f.id}"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `;
+      cssList.appendChild(el);
+    });
+
+    // hooks
+    cssList.querySelectorAll('.toggle').forEach(t=>{
+      t.onclick = (ev) => {
+        const id = t.dataset.id;
+        const f = State.cssFiles.find(x=>x.id===id);
+        if(!f) return;
+        f.active = !f.active;
+        renderCssList();
+        postToHost({ type:'NEBULA_TOGGLE_CSS', fileId: f.id, active: f.active });
+      };
+    });
+    cssList.querySelectorAll('[data-id-edit]').forEach(b=>{
+      b.onclick = (ev) => {
+        const id = b.dataset.idEdit;
+        const f = State.cssFiles.find(x=>x.id===id);
+        if(!f) return;
+        openCssEditor(f);
+      };
+    });
+    cssList.querySelectorAll('[data-id-remove]').forEach(b=>{
+      b.onclick = (ev) => {
+        const id = b.dataset.idRemove;
+        const i = State.cssFiles.findIndex(x=>x.id===id);
+        if(i>=0){
+          const removed = State.cssFiles.splice(i,1)[0];
+          renderCssList();
+          postToHost({ type:'NEBULA_REMOVE_CSS', fileId: removed.id });
+        }
+      };
+    });
+  }
+
+  function renderPresets(){
+    presetList.innerHTML = '';
+    const all = [...BUILTIN_PRESETS, ...(State.presets || [])];
+    all.forEach(p=>{
+      const el = document.createElement('div'); el.className = 'preset';
+      el.innerHTML = `<div class="name">${p.name}</div><div style="font-size:0.82rem;color:var(--muted)">${p.date}</div><div style="margin-top:6px;display:flex;gap:6px;"><button class="btn" data-id="${p.id}" data-act="apply">Aplicar</button><button class="btn" data-id="${p.id}" data-act="info">Info</button></div>`;
+      presetList.appendChild(el);
+    });
+    presetList.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = (ev)=>{
+        const id = btn.dataset.id;
+        const act = btn.dataset.act;
+        const preset = BUILTIN_PRESETS.find(x=>x.id===id) || (State.presets||[]).find(x=>x.id==id);
+        if(!preset) return alert('Preset não encontrado');
+        if(act==='apply') applyPreset(preset);
+        else alert('Preset: ' + preset.name + '\n' + (preset.meta?JSON.stringify(preset.meta):''));
+      };
+    });
+  }
+
+  function renderPages(){
+    pagesList.innerHTML = '';
+    // Demo pages - in the future, host can provide actual pages
+    const demoPages = State.pages || [
+      { id: 'p-home', name: 'Home' },
+      { id: 'p-about', name: 'Sobre' },
+      { id: 'p-dashboard', name: 'Dashboard' }
+    ];
+    demoPages.forEach(p=>{
+      const el = document.createElement('div'); el.className='page-card';
+      el.innerHTML = `<div style="font-weight:700">${p.name}</div><div style="font-size:0.8rem;color:var(--muted)">${p.id}</div><div style="margin-top:8px"><button class="btn" data-page="${p.id}">Editar</button></div>`;
+      pagesList.appendChild(el);
+    });
+    pagesList.querySelectorAll('button').forEach(b=>{
+      b.onclick = (e) => alert('Abrir editor da página: ' + b.dataset.page + ' (demo)');
+    });
+  }
+
+  // ---------- CSS Editor ----------
+  function openCssEditor(f){
+    codeEditorWrap.style.display = 'block';
+    State.editingCss = f;
+    codeEditorTextarea.value = f.content;
+    // init codemirror if needed
+    if(!codeMirror){
+      codeMirror = CodeMirror.fromTextArea(codeEditorTextarea, { mode:'css', lineNumbers:true, theme:'default' });
+      codeMirror.setSize('100%', 240);
+    } else {
+      codeMirror.setValue(f.content);
+    }
+    window.scrollTo({ top: document.body.scrollHeight, behavior:'smooth' });
+  }
+
+  function closeCssEditor(){
+    codeEditorWrap.style.display = 'none';
+    State.editingCss = null;
+  }
+
+  // ---------- Selection and style updates ----------
+  function setSelected(node){
+    State.selected = node;
+    if(!node){
+      selTitle.textContent = 'Nenhum elemento selecionado';
+      selMeta.textContent = 'Selecione um item';
+      previewBox.textContent = 'EL';
+      controlsCard.style.display = 'none';
+      noSelectionMsg.style.display = 'block';
+      return;
+    }
+    selTitle.textContent = '#' + node.id;
+    selMeta.textContent = `<${node.tag.toLowerCase()}> • ${node.group || 'sem-grupo'}`;
+    previewBox.textContent = (node.tag||'el').slice(0,2).toUpperCase();
+    controlsCard.style.display = 'block';
+    noSelectionMsg.style.display = 'none';
+    // reset controls optionally with last known state or defaults
+    ctrlOpacity.value = node.state?.opacity ?? 1;
+    ctrlScale.value = node.state?.scale ?? 1;
+    ctrlY.value = node.state?.y ?? 0;
+    ctrlBg.value = node.state?.backgroundColor ?? '#000000';
+  }
+
+  function applyCurrentControls(pushToUndo=true){
+    if(!State.selected) return;
+    const styles = {
+      opacity: parseFloat(ctrlOpacity.value),
+      transform: `scale(${parseFloat(ctrlScale.value)}) translateY(${parseInt(ctrlY.value)}px)`,
+      backgroundColor: ctrlBg.value
+    };
+    // push undo
+    if(pushToUndo){
+      pushUndo({ type:'style', id: State.selected.id, prev: JSON.parse(JSON.stringify(State.selected.state || {})) });
+    }
+    // update local
+    State.selected.state = styles;
+    // send to host
+    postToHost({ type:'NEBULA_UPDATE_STYLE', id: State.selected.id, styles });
+  }
+
+  function revertSelected(){
+    if(!State.selected) return;
+    const prev = State.selected.state || {};
+    // push undo
+    pushUndo({ type:'revert', id: State.selected.id, prev: prev });
+    // reset on host
+    State.selected.state = {};
+    postToHost({ type:'NEBULA_REVERT_STYLE', id: State.selected.id });
+    // UI reset
+    ctrlOpacity.value = 1; ctrlScale.value = 1; ctrlY.value = 0; ctrlBg.value = '#000000';
+    alert('Estilos revertidos');
+  }
+
+  // ---------- Host communication ----------
+  window.addEventListener('message', (ev) => {
+    const data = ev.data || {};
+    if(!data || typeof data !== 'object') return;
+    switch(data.type){
+      case 'NEBULA_SCAN_RES':
+        // data.tree = [{id, tag, text, group, isContainer}]
+        State.nodes = data.tree || [];
+        hostLabel.textContent = ev.origin || data.host || 'host';
+        nodeCountEl.textContent = (State.nodes.length || 0) + ' nodes';
+        nodeCountEl.style.color = 'var(--muted)';
+        // build group map
+        State.groups = {};
+        State.nodes.forEach(n=>{
+          const g = n.group || 'sem-grupo';
+          if(!State.groups[g]) State.groups[g] = { name:g, elements:[], visible:true, opacity:1, scale:1 };
+          State.groups[g].elements.push(n.id);
+        });
+        renderGroups();
+        // also render a quick local list (select first node by default)
+        renderNodesMini();
+        break;
+
+      case 'NEBULA_PONG':
+        // optional heartbeat
+        break;
+
+      default:
+        // Unknown message - ignore or log
+        // console.log('NEBULA host>', data);
+        break;
+    }
+  });
+
+  function renderNodesMini(){
+    // We won't show the full DOM list here (to preserve vertical stack), but allow quick selection via groups expanded content
+    // For demo: if there's at least one node select it
+    if(State.nodes.length){
+      setSelected(State.nodes[0]);
+    }
+  }
+
+  // ---------- Events binding ----------
+  scanBtn.addEventListener('click', ()=>{
+    postToHost({ type:'NEBULA_SCAN_REQ' });
+    // small UI feedback
+    hostLabel.textContent = 'scanning…';
+    nodeCountEl.textContent = '— nodes';
+  });
+
+  applyBtn.addEventListener('click', ()=>applyCurrentControls(true));
+  saveStyleBtn.addEventListener('click', ()=> {
+    applyCurrentControls(true);
+    alert('Estilos aplicados e registrados no histórico');
+  });
+  revertBtn.addEventListener('click', revertSelected);
+
+  highlightBtn.addEventListener('click', ()=>{
+    if(!State.selected) return;
+    postToHost({ type:'NEBULA_HIGHLIGHT', id: State.selected.id });
+  });
+
+  copyBtn.addEventListener('click', ()=>{
+    if(!State.selected) return;
+    navigator.clipboard?.writeText('#' + State.selected.id);
+    alert('Seletor copiado: #' + State.selected.id);
+  });
+
+  clearSelBtn.addEventListener('click', ()=> setSelected(null));
+
+  // Undo / Redo
+  undoBtn.addEventListener('click', ()=>{
+    const action = State.undoStack.pop();
+    if(!action) return;
+    // naive apply reverse
+    State.redoStack.push(action);
+    if(action.type === 'style' && action.id){
+      // revert style on host
+      postToHost({ type:'NEBULA_UPDATE_STYLE', id: action.id, styles: action.prev || {} });
+      if(State.selected && State.selected.id === action.id) {
+        ctrlOpacity.value = action.prev.opacity ?? 1;
+        ctrlScale.value = action.prev.scale ?? 1;
+        ctrlY.value = action.prev.y ?? 0;
+        ctrlBg.value = action.prev.backgroundColor ?? '#000000';
+      }
+    } else if(action.type === 'preset-apply'){
+      // revert cssFiles
+      State.cssFiles = (action.prev && action.prev.cssFiles) || [];
+      renderCssList();
+      State.cssFiles.forEach(f=> postToHost({ type:'NEBULA_CSS_FILE', fileId: f.id, content: f.content, active: f.active }));
+    } else if(action.type === 'group-toggle'){
+      const g = State.groups[action.group];
+      if(g) { g.visible = action.prev; postToHost({ type:'NEBULA_GROUP_TOGGLE', group: action.group, visible: g.visible }); renderGroups(); }
+    } else if(action.type === 'group-style'){
+      const g = State.groups[action.group];
+      if(g) { g.opacity = action.prev.opacity; g.scale = action.prev.scale; postToHost({ type:'NEBULA_UPDATE_GROUP', group: action.group, styles: { opacity: g.opacity, transform: `scale(${g.scale})` } }); }
+    }
+    updateUndoUI();
+  });
+
+  redoBtn.addEventListener('click', ()=>{
+    const action = State.redoStack.pop();
+    if(!action) return;
+    // re-apply action (simplified)
+    if(action.type === 'style' && action.id){
+      postToHost({ type:'NEBULA_UPDATE_STYLE', id: action.id, styles: action.prev || {} });
+    }
+    updateUndoUI();
+  });
+
+  // Save preset
+  saveBtn.addEventListener('click', ()=>{
+    const name = prompt('Nome do preset:');
+    if(!name) return;
+    const preset = { id: uid('preset'), name, date: (new Date()).toLocaleDateString(), cssFiles: State.cssFiles.map(f=>({name:f.name, content:f.content})) };
+    State.presets = State.presets || [];
+    State.presets.push(preset);
+    localStorage.setItem('nebula_presets', JSON.stringify(State.presets));
+    renderPresets();
+    alert('Preset salvo: ' + name);
+  });
+
+  exportBtn.addEventListener('click', ()=>{
+    const exportData = { cssFiles: State.cssFiles, presets: State.presets, groups: State.groups };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'nebula-export-' + Date.now() + '.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // CSS upload / new
+  document.getElementById('newCssBtn').addEventListener('click', ()=>{
+    const name = prompt('Nome do arquivo CSS (ex: custom.css):', 'custom.css');
+    if(!name) return;
+    const content = '/* novo arquivo ' + name + ' */\n';
+    const file = { id: uid('css'), name, content, active: true };
+    State.cssFiles.push(file);
+    renderCssList();
+    postToHost({ type:'NEBULA_CSS_FILE', fileId: file.id, content: file.content, active: file.active, name: file.name });
+  });
+
+  document.getElementById('importCssBtn').addEventListener('click', ()=> cssUpload.click());
+  cssUpload.addEventListener('change', (e)=>{
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const content = ev.target.result;
+      const fileObj = { id: uid('css'), name: f.name, content, active: true };
+      State.cssFiles.push(fileObj);
+      renderCssList();
+      postToHost({ type:'NEBULA_CSS_FILE', fileId: fileObj.id, content: fileObj.content, active: fileObj.active, name: fileObj.name });
+    };
+    reader.readAsText(f);
+    e.target.value = '';
+  });
+
+  // Code editor apply/cancel
+  document.getElementById('applyCssEdit').addEventListener('click', ()=>{
+    if(!State.editingCss || !codeMirror) return;
+    const updated = codeMirror.getValue();
+    State.editingCss.content = updated;
+    postToHost({ type:'NEBULA_CSS_FILE', fileId: State.editingCss.id, content: State.editingCss.content, active: State.editingCss.active, name: State.editingCss.name });
+    closeCssEditor();
+    renderCssList();
+  });
+  document.getElementById('cancelCssEdit').addEventListener('click', ()=> closeCssEditor());
+
+  // small helpers for opening editor from dynamic list (delegation)
+  document.addEventListener('click', (e)=>{
+    const editBtn = e.target.closest('[data-id-edit]');
+    if(editBtn){ const id = editBtn.dataset.idEdit; const file = State.cssFiles.find(x=>x.id==id); if(file) openCssEditor(file); }
+    const removeBtn = e.target.closest('[data-id-remove]');
+    if(removeBtn){ const id = removeBtn.dataset.idRemove; const idx = State.cssFiles.findIndex(x=>x.id==id); if(idx>=0){ const removed = State.cssFiles.splice(idx,1); renderCssList(); postToHost({ type:'NEBULA_REMOVE_CSS', fileId: id }); } }
+  });
+
+  // init - load saved presets
+  (function initState(){
+    try{
+      const s = JSON.parse(localStorage.getItem('nebula_presets') || '[]');
+      State.presets = s;
+    }catch(e){ State.presets = []; }
+    renderPresets();
+    renderPages();
+    // preload builtins shown as presets (UI only)
+    renderPresets();
+    renderCssList();
+    updateUndoUI();
+  })();
+
+  // expose App.toggleCss for older inline handlers (kept for compatibility)
+  window.App = window.App || {};
+  window.App.toggleCss = function(id){
+    const f = State.cssFiles.find(x=>x.id==id);
+    if(!f) return;
+    f.active = !f.active;
+    renderCssList();
+    postToHost({ type:'NEBULA_TOGGLE_CSS', fileId: f.id, active: f.active });
+  };
+
+  // small UI: collapse/expand all groups
+  document.getElementById('collapseAll').addEventListener('click', ()=>{
+    groupsAccordion.querySelectorAll('.accordion-body').forEach(b=>b.classList.remove('active'));
+  });
+  document.getElementById('expandAll').addEventListener('click', ()=>{
+    groupsAccordion.querySelectorAll('.accordion-body').forEach(b=>b.classList.add('active'));
+  });
+
+  // Reset defaults
+  document.getElementById('resetDefaults').addEventListener('click', ()=>{
+    if(!confirm('Restaurar presets padrão?')) return;
+    State.presets = []; localStorage.removeItem('nebula_presets'); renderPresets();
+    alert('Defaults restaurados');
+  });
+
+  // CSS Editor lazy CodeMirror creation when showing editor
+  const observer = new MutationObserver(m=>{
+    if(codeEditorWrap.style.display !== 'none' && !codeMirror){
+      // initialise
+      codeMirror = CodeMirror.fromTextArea(codeEditorTextarea, { mode:'css', lineNumbers:true, theme:'default' });
+      codeMirror.setSize('100%', 240);
+    }
+  });
+  observer.observe(codeEditorWrap, { attributes:true, attributeFilter:['style'] });
+
+  // initial brief ping to host to detect availability
+  postToHost({ type:'NEBULA_BRIDGE_PING' });
+
+  // helpful expose for debugging
+  window.NEBULA_STATE = State;
+
+})();
+</script>
+</body>
+</html>

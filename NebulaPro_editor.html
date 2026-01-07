@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEBULA PRO // MOBILE COMMAND</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-void: #050505;
+            --bg-card: #111113;
+            --bg-glass: rgba(17, 17, 19, 0.95);
+            
+            --border: #2a2a2d;
+            --border-active: #00f2ff;
+            
+            --accent: #00f2ff;       /* Cyber Cyan */
+            --accent-glow: rgba(0, 242, 255, 0.15);
+            --secondary: #bd00ff;    /* Neon Purple */
+            
+            --text-main: #ffffff;
+            --text-muted: #6b7280;
+            
+            --success: #00ff9d;
+            --danger: #ff4d4d;
+            
+            --radius-lg: 16px;
+            --radius-sm: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background-color: var(--bg-void);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- TOP BAR (Sticky) --- */
+        header {
+            height: 60px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+        
+        .brand { 
+            font-family: 'JetBrains Mono', monospace; 
+            font-weight: 800; 
+            color: var(--text-main); 
+            font-size: 1.1rem;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .brand i { color: var(--accent); animation: pulse 3s infinite; }
+
+        .history-controls { display: flex; gap: 8px; }
+        .btn-icon {
+            width: 40px; height: 40px;
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.05);
+            border: 1px solid transparent;
+            color: var(--text-main);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.2s;
+        }
+        .btn-icon:active { transform: scale(0.95); background: var(--accent-glow); }
+        .btn-icon:disabled { opacity: 0.3; pointer-events: none; }
+        .btn-primary { background: var(--accent); color: #000; font-weight: 700; border: none; }
+        .btn-primary:active { background: #fff; }
+
+        /* --- DASHBOARD STREAM (Scrollable) --- */
+        .dashboard {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 16px;
+            padding-bottom: 100px; /* Space for bottom interaction */
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* --- CARDS --- */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        
+        /* HERO CARD (Active Element) */
+        .hero-card {
+            background: linear-gradient(145deg, #1a1a1e 0%, #0f0f11 100%);
+            border: 1px solid var(--border-active);
+            padding: 16px;
+            position: relative;
+        }
+        
+        .hero-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .tag-badge { 
+            background: var(--accent-glow); color: var(--accent); 
+            padding: 4px 8px; border-radius: 4px; 
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; font-weight: 700;
+        }
+        .hero-id { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; display: block; margin-top: 4px; }
+        
+        .nav-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;
+        }
+        .nav-btn {
+            height: 44px; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            border-radius: var(--radius-sm); color: var(--text-muted);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .nav-btn:active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+        /* ACCORDION SYSTEM */
+        .accordion-item { border-bottom: 1px solid var(--border); background: var(--bg-card); }
+        .accordion-item:first-child { border-top-left-radius: var(--radius-lg); border-top-right-radius: var(--radius-lg); }
+        .accordion-item:last-child { border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); border-bottom: none; }
+        
+        .accordion-header {
+            padding: 16px; width: 100%; text-align: left;
+            background: transparent; border: none; color: var(--text-main);
+            font-weight: 600; font-size: 0.9rem;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .accordion-header i { transition: transform 0.3s; color: var(--text-muted); }
+        .accordion-header.active i { transform: rotate(180deg); color: var(--accent); }
+        
+        .accordion-content {
+            max-height: 0; overflow: hidden; transition: max-height 0.3s cubic-bezier(0,1,0,1);
+            background: rgba(0,0,0,0.2);
+        }
+        .accordion-content.open { max-height: 500px; overflow-y: auto; } /* Scroll inside if huge */
+        .p-content { padding: 16px; }
+
+        /* TREE VIEW (Simplified for Mobile) */
+        .tree-list { display: flex; flex-direction: column; gap: 4px; }
+        .tree-node {
+            padding: 10px; border-radius: var(--radius-sm);
+            display: flex; align-items: center; gap: 10px;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+            background: rgba(255,255,255,0.02);
+            border-left: 2px solid transparent;
+        }
+        .tree-node.active { background: rgba(0,242,255,0.1); border-left-color: var(--accent); color: var(--accent); }
+        .tree-node i { opacity: 0.5; }
+
+        /* CONTROLS */
+        .control-row { margin-bottom: 16px; }
+        .label-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .c-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+        .c-val { font-size: 0.75rem; color: var(--accent); font-family: 'JetBrains Mono'; }
+        
+        input[type="range"] {
+            width: 100%; height: 6px; background: #333; border-radius: 3px; appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none; width: 18px; height: 18px; border-radius: 50%;
+            background: var(--text-main); border: 2px solid var(--bg-void);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        input[type="range"]:active::-webkit-slider-thumb { background: var(--accent); transform: scale(1.2); }
+
+        /* PRESET GRID */
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .preset-btn {
+            padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+            background: rgba(255,255,255,0.03); color: var(--text-muted);
+            text-align: center; font-size: 0.85rem; font-weight: 600;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+        }
+        .preset-btn i { font-size: 1.2rem; margin-bottom: 4px; }
+        .preset-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+        /* GROUP TOGGLE */
+        .group-toggle {
+            display: flex; background: #000; padding: 4px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+        .g-opt {
+            flex: 1; text-align: center; padding: 8px; font-size: 0.75rem; font-weight: 600;
+            color: var(--text-muted); border-radius: 4px; transition: 0.2s;
+        }
+        .g-opt.selected { background: var(--bg-card); color: var(--text-main); box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+
+        /* FAB (Scan) */
+        .fab-scan {
+            position: fixed; bottom: 20px; right: 20px;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--accent); color: #000;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; box-shadow: 0 10px 30px rgba(0,242,255,0.3);
+            border: none; z-index: 200;
+            transition: transform 0.2s;
+        }
+        .fab-scan:active { transform: scale(0.9) rotate(180deg); }
+
+        /* Animations */
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* CodeMirror-ish Textarea */
+        .code-editor {
+            width: 100%; min-height: 150px; background: #0d0d0d; border: 1px solid var(--border);
+            color: #a5b3ce; font-family: 'JetBrains Mono'; font-size: 0.8rem; padding: 10px;
+            border-radius: var(--radius-sm); resize: vertical; outline: none;
+        }
+        .code-editor:focus { border-color: var(--accent); }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand"><i class="fa-solid fa-cube"></i> NEBULA</div>
+        <div class="history-controls">
+            <button class="btn-icon" id="undoBtn" disabled><i class="fa-solid fa-rotate-left"></i></button>
+            <button class="btn-icon" id="redoBtn" disabled><i class="fa-solid fa-rotate-right"></i></button>
+            <button class="btn-icon btn-primary" id="saveBtn"><i class="fa-solid fa-floppy-disk"></i></button>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        
+        <!-- HERO CARD: Active Element -->
+        <div class="card hero-card">
+            <div id="noSelection" style="text-align:center; padding: 20px; color: var(--text-muted);">
+                <i class="fa-solid fa-arrow-pointer" style="margin-bottom:8px;"></i><br>
+                NO TARGET
+            </div>
+            
+            <div id="heroContent" style="display:none;">
+                <div class="hero-header">
+                    <div>
+                        <span class="tag-badge" id="heroTag">DIV</span>
+                        <span class="hero-id" id="heroId">#section-main</span>
+                    </div>
+                    <div style="font-size:0.7rem; color:var(--text-muted); text-align:right;">
+                        <i class="fa-solid fa-ruler-combined"></i> <span id="heroDims">0x0</span>
+                    </div>
+                </div>
+
+                <!-- Grouping Toggle -->
+                <div class="group-toggle">
+                    <div class="g-opt selected" id="modeSingle" onclick="App.setGroupMode('single')">SINGLE</div>
+                    <div class="g-opt" id="modeGroup" onclick="App.setGroupMode('group')">GROUP (CLASS)</div>
+                </div>
+
+                <!-- DOM Navigation -->
+                <div class="nav-grid">
+                    <button class="nav-btn" onclick="App.navDom('parent')"><i class="fa-solid fa-arrow-up"></i></button>
+                    <button class="nav-btn" onclick="App.navDom('child')"><i class="fa-solid fa-arrow-down"></i></button>
+                    <button class="nav-btn" onclick="App.navDom('prev')"><i class="fa-solid fa-arrow-left"></i></button>
+                    <button class="nav-btn" onclick="App.navDom('next')"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- STACK 1: HIERARCHY -->
+        <div class="card">
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="App.toggleAccordion(this)">
+                    <span><i class="fa-solid fa-sitemap" style="margin-right:8px;"></i> DOM TREE</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="accordion-content">
+                    <div class="p-content tree-list" id="domTree">
+                        <!-- Tree Items -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STACK 2: VISUAL LAB -->
+        <div class="card">
+            <div class="accordion-item">
+                <button class="accordion-header active" onclick="App.toggleAccordion(this)">
+                    <span><i class="fa-solid fa-sliders" style="margin-right:8px;"></i> VISUAL LAB</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="accordion-content open">
+                    <div class="p-content">
+                        
+                        <div class="control-row">
+                            <div class="label-row"><span class="c-label">Opacity</span><span class="c-val" id="valOpacity">1.0</span></div>
+                            <input type="range" id="inpOpacity" min="0" max="1" step="0.1" value="1">
+                        </div>
+                        
+                        <div class="control-row">
+                            <div class="label-row"><span class="c-label">Scale</span><span class="c-val" id="valScale">1.0</span></div>
+                            <input type="range" id="inpScale" min="0.5" max="1.5" step="0.05" value="1">
+                        </div>
+
+                        <div class="control-row">
+                            <div class="label-row"><span class="c-label">Vertical Shift</span><span class="c-val" id="valY">0px</span></div>
+                            <input type="range" id="inpY" min="-100" max="100" step="1" value="0">
+                        </div>
+
+                        <div class="control-row">
+                             <div class="label-row"><span class="c-label">Filter (Blur)</span><span class="c-val" id="valBlur">0px</span></div>
+                             <input type="range" id="inpBlur" min="0" max="20" step="1" value="0">
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STACK 3: PRESETS (The 3 + Default) -->
+        <div class="card">
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="App.toggleAccordion(this)">
+                    <span><i class="fa-solid fa-wand-magic-sparkles" style="margin-right:8px;"></i> PRESETS</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="accordion-content">
+                    <div class="p-content">
+                        <div class="preset-grid">
+                            <div class="preset-btn active" onclick="App.applyPreset('neutro', this)">
+                                <i class="fa-regular fa-circle"></i> NEUTRO
+                            </div>
+                            <div class="preset-btn" onclick="App.applyPreset('focus', this)">
+                                <i class="fa-solid fa-crosshairs"></i> FOCUS
+                            </div>
+                            <div class="preset-btn" onclick="App.applyPreset('relax', this)">
+                                <i class="fa-solid fa-coffee"></i> RELAX
+                            </div>
+                            <div class="preset-btn" onclick="App.applyPreset('creative', this)">
+                                <i class="fa-solid fa-palette"></i> CREATIVE
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STACK 4: CSS MASTER -->
+        <div class="card">
+            <div class="accordion-item">
+                <button class="accordion-header" onclick="App.toggleAccordion(this)">
+                    <span><i class="fa-brands fa-css3" style="margin-right:8px;"></i> CSS INJECTOR</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="accordion-content">
+                    <div class="p-content">
+                        <textarea class="code-editor" id="cssEditor" placeholder="/* Custom CSS here */&#10;body { background: #000; }"></textarea>
+                        <button class="btn-icon btn-primary" style="width:100%; margin-top:10px; border-radius:4px;" onclick="App.injectRawCss()">INJECT CSS</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Floating Action Button -->
+    <button class="fab-scan" onclick="App.scanHost()"><i class="fa-solid fa-radar"></i></button>
+
+<script>
+    /**
+     * NEBULA PRO // MOBILE COMMAND KERNEL
+     */
+    const App = {
+        state: {
+            domTree: [],
+            selectedId: null,
+            selectedNode: null,
+            groupMode: 'single', // 'single' or 'group'
+            history: [],
+            historyIndex: -1,
+            presets: {
+                neutro: '',
+                focus: 'filter: grayscale(100%) contrast(1.2);',
+                relax: 'filter: sepia(60%) brightness(0.9);',
+                creative: 'filter: hue-rotate(90deg) saturate(1.5); box-shadow: 0 0 20px rgba(0,242,255,0.5);'
+            }
+        },
+
+        init() {
+            this.bindControls();
+            // Start listening
+            window.addEventListener('message', (e) => this.handleMessage(e));
+            // Auto scan after 1s
+            setTimeout(() => this.scanHost(), 1000);
+        },
+
+        scanHost() {
+            const btn = document.querySelector('.fab-scan i');
+            btn.classList.add('fa-spin');
+            window.parent.postMessage({ type: 'NEBULA_SCAN_REQ' }, '*');
+            setTimeout(() => btn.classList.remove('fa-spin'), 1000);
+        },
+
+        handleMessage(e) {
+            const data = e.data;
+            if(data.type === 'NEBULA_SCAN_RES') {
+                this.state.domTree = data.tree;
+                this.renderTree();
+            }
+        },
+
+        // --- UI RENDERING ---
+
+        renderTree() {
+            const container = document.getElementById('domTree');
+            container.innerHTML = '';
+            
+            this.state.domTree.forEach(node => {
+                const div = document.createElement('div');
+                div.className = 'tree-node';
+                if(this.state.selectedId === node.id) div.classList.add('active');
+                
+                const icon = node.isContainer ? 'fa-folder' : 'fa-cube';
+                div.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${node.tag}</span> <span style="opacity:0.5; font-size:0.7em">#${node.id.substr(0,4)}</span>`;
+                
+                div.onclick = () => this.selectNode(node.id);
+                container.appendChild(div);
+            });
+        },
+
+        selectNode(id) {
+            const node = this.state.domTree.find(n => n.id === id);
+            if(!node) return;
+
+            this.state.selectedId = id;
+            this.state.selectedNode = node;
+
+            // Highlight in Host
+            window.parent.postMessage({ type: 'NEBULA_HIGHLIGHT', id: id }, '*');
+
+            // Update UI
+            document.getElementById('noSelection').style.display = 'none';
+            document.getElementById('heroContent').style.display = 'block';
+            
+            document.getElementById('heroTag').innerText = node.tag.toUpperCase();
+            document.getElementById('heroId').innerText = '#' + id;
+            
+            // Re-render tree to show active state
+            this.renderTree();
+            
+            // Scroll tree to selection (optional improvement)
+        },
+
+        // --- LOGIC & ACTIONS ---
+
+        toggleAccordion(btn) {
+            const content = btn.nextElementSibling;
+            btn.classList.toggle('active');
+            content.classList.toggle('open');
+        },
+
+        setGroupMode(mode) {
+            this.state.groupMode = mode;
+            document.querySelectorAll('.g-opt').forEach(el => el.classList.remove('selected'));
+            document.getElementById(mode === 'single' ? 'modeSingle' : 'modeGroup').classList.add('selected');
+        },
+
+        updateStyle(prop, value, uiValueId = null) {
+            if(!this.state.selectedId) return;
+            
+            if(uiValueId) document.getElementById(uiValueId).innerText = value;
+
+            let styles = {};
+            
+            // Composite Logic for Transforms
+            const scale = document.getElementById('inpScale').value;
+            const y = document.getElementById('inpY').value;
+            styles.transform = `scale(${scale}) translateY(${y}px)`;
+            
+            styles.opacity = document.getElementById('inpOpacity').value;
+            styles.filter = `blur(${document.getElementById('inpBlur').value}px)`;
+
+            // Push to History (Debounce needed for sliders in prod, simple here)
+            // this.addToHistory(...)
+
+            // Determine Target (Single vs Group)
+            let targetId = this.state.selectedId;
+            // If Group Mode: We need to tell Host to apply to all with same class.
+            // For now, let's keep it simple ID based for visual feedback.
+            
+            window.parent.postMessage({
+                type: 'NEBULA_UPDATE_STYLE',
+                id: targetId,
+                styles: styles,
+                mode: this.state.groupMode, // Host needs to handle this if implemented
+                classes: this.state.selectedNode ? this.state.selectedNode.classes : ''
+            }, '*');
+        },
+
+        // --- DOM NAVIGATION ---
+        navDom(direction) {
+            if(!this.state.selectedId) return;
+            // Simple index based nav for this demo
+            const idx = this.state.domTree.findIndex(n => n.id === this.state.selectedId);
+            if(idx === -1) return;
+
+            let newIdx = idx;
+            if(direction === 'next') newIdx = Math.min(idx + 1, this.state.domTree.length - 1);
+            if(direction === 'prev') newIdx = Math.max(idx - 1, 0);
+            
+            // Parent/Child logic requires full tree structure knowledge which we simplified to a list.
+            // We will stick to list traversal for Prev/Next.
+            
+            if(newIdx !== idx) this.selectNode(this.state.domTree[newIdx].id);
+        },
+
+        // --- PRESETS ---
+        applyPreset(name, btnEl) {
+            if(!this.state.selectedId) return alert("Select an element first!");
+            
+            // UI Toggle
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            if(btnEl) btnEl.classList.add('active');
+
+            const styleString = this.state.presets[name];
+            
+            // Convert string css to object
+            // Quick hack for demo: we send raw style text to be parsed by host or specific props
+            // Since our host expects object, we manually map for these 4 presets
+            
+            let styles = {};
+            if(name === 'neutro') {
+                styles = { filter: 'none', transform: 'none', opacity: '1' };
+                // Reset sliders
+                document.getElementById('inpOpacity').value = 1;
+                document.getElementById('inpScale').value = 1;
+                document.getElementById('inpBlur').value = 0;
+            } else if (name === 'focus') {
+                styles = { filter: 'grayscale(100%) contrast(120%)' };
+            } else if (name === 'relax') {
+                styles = { filter: 'sepia(60%) brightness(90%)' };
+            } else if (name === 'creative') {
+                styles = { filter: 'hue-rotate(90deg) saturate(150%)', outline: '2px dashed #bd00ff' };
+            }
+
+            window.parent.postMessage({
+                type: 'NEBULA_UPDATE_STYLE',
+                id: this.state.selectedId,
+                styles: styles
+            }, '*');
+        },
+        
+        injectRawCss() {
+            const css = document.getElementById('cssEditor').value;
+            const id = Date.now();
+            window.parent.postMessage({
+                type: 'NEBULA_CSS_FILE',
+                fileId: id,
+                content: css,
+                active: true
+            }, '*');
+            alert('CSS Injected!');
+        },
+
+        bindControls() {
+            document.getElementById('inpOpacity').addEventListener('input', (e) => this.updateStyle('opacity', e.target.value, 'valOpacity'));
+            document.getElementById('inpScale').addEventListener('input', (e) => this.updateStyle('scale', e.target.value, 'valScale'));
+            document.getElementById('inpY').addEventListener('input', (e) => this.updateStyle('y', e.target.value + 'px', 'valY'));
+            document.getElementById('inpBlur').addEventListener('input', (e) => this.updateStyle('blur', e.target.value + 'px', 'valBlur'));
+            
+            // Undo/Redo stubs
+            document.getElementById('saveBtn').addEventListener('click', () => alert('Configuration Saved to Vault.'));
+        }
+    };
+
+    window.onload = () => App.init();
+</script>
+</body>
+</html>
+
