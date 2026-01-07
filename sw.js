@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pwa-nebulapro/-v1';
+const CACHE_NAME = 'pwa-nebulapro/-v0';
 const ASSETS = [
     './',
     'index.html',
